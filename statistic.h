@@ -98,6 +98,7 @@ public:
 	}
 
 	bool is_finished() const {
+		std::cout << "========== #" << count << " ==========" << std::endl;
 		return count >= total;
 	}
 

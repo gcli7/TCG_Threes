@@ -3,6 +3,7 @@
 #include <random>
 #include <sstream>
 #include <map>
+#include <vector>
 #include <type_traits>
 #include <algorithm>
 #include "board.h"
@@ -62,19 +63,29 @@ protected:
 class rndenv : public random_agent {
 public:
 	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
-		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }), popup(0, 9) {}
+		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }), popup(0, 2) {}
 
 	virtual action take_action(const board& after) {
+		if (bag.empty()) {
+			for(int i = 1; i <= 3; i++)
+				bag.push_back(i);
+		}
+		popup.param(std::uniform_int_distribution<>::param_type {0, bag.size() - 1});
+
 		std::shuffle(space.begin(), space.end(), engine);
 		for (int pos : space) {
 			if (after(pos) != 0) continue;
-			board::cell tile = popup(engine) ? 1 : 2;
+			int random_num = popup(engine);
+			board::cell tile = random_num ? 1 : 2;
+			std::cout << "popup = " << random_num << ", value = " << bag[random_num] << std::endl;
+			bag.erase(bag.begin() + random_num);
 			return action::place(pos, tile);
 		}
 		return action();
 	}
 
 private:
+	std::vector<int> bag;
 	std::array<int, 16> space;
 	std::uniform_int_distribution<int> popup;
 };
