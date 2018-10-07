@@ -22,7 +22,7 @@ public:
 	virtual ~agent() {}
 	virtual void open_episode(const std::string& flag = "") {}
 	virtual void close_episode(const std::string& flag = "") {}
-	virtual action take_action(const board& b) { return action(); }
+	virtual action take_action(const board& b, int& last_op) { return action(); }
 	virtual bool check_for_win(const board& b) { return false; }
 
 public:
@@ -65,7 +65,9 @@ public:
 	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
 		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }), popup(0, 2) {}
 
-	virtual action take_action(const board& after) {
+	virtual action take_action(const board& after, int& last_op) {
+		//std::cout << "last_op = " << last_op << std::endl;
+
 		if (bag.empty()) {
 			for(int i = 1; i <= 3; i++)
 				bag.push_back(i);
@@ -99,7 +101,7 @@ public:
 	player(const std::string& args = "") : random_agent("name=dummy role=player " + args),
 		opcode({ 0, 1, 2, 3 }) {}
 
-	virtual action take_action(const board& before) {
+	virtual action take_action(const board& before, int& last_op) {
 		int best_op = -1;
 		board::reward best_reward = -1;
 
@@ -111,8 +113,11 @@ public:
 				best_op = op;
 			}
 		}
-		if(best_op != -1)
+		if(best_op != -1) {
+			//std::cout << "direction = " << best_op << std::endl;
+			last_op = best_op;
 			return action::slide(best_op);
+		}
 		return action();
 	}
 

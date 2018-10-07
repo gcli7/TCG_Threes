@@ -22,8 +22,8 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(0) {}
-	board(const grid& b, data v = 0) : tile(b), attr(v) {}
+	board() : last_op(-1), tile(), attr(0) {}
+	board(const grid& b, data v = 0) : last_op(-1), tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -168,6 +168,8 @@ public:
 		out << "+------------------------+" << std::endl;
 		return out;
 	}
+public:
+	int last_op;
 
 private:
 	grid tile;
