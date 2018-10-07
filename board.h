@@ -22,8 +22,8 @@ public:
 	typedef int reward;
 
 public:
-	board() : last_op(-1), tile(), attr(0) {}
-	board(const grid& b, data v = 0) : last_op(-1), tile(b), attr(v) {}
+	board() : last_op(-2), tile(), attr(0) {}
+	board(const grid& b, data v = 0) : last_op(-2), tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -53,7 +53,7 @@ public:
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
-		if (tile != 1 && tile != 2) return -1;
+		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
 		return 0;
 	}
