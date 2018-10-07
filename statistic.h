@@ -57,7 +57,7 @@ public:
 			auto& ep = *(--it);
 			sum += ep.score();
 			max = std::max(ep.score(), max);
-			stat[*std::max_element(&(ep.state()(0)), &(ep.state()(16)))]++;
+			stat[*std::max_element(&(ep.state()(0)), &(ep.state()(14)))]++;
 			sop += ep.step();
 			pop += ep.step(action::slide::type);
 			eop += ep.step(action::place::type);
@@ -82,7 +82,8 @@ public:
 		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
 			if (stat[t] == 0) continue;
 			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
-			std::cout << "\t" << ((1 << t) & -2u); // type
+			//std::cout << "\t" << ((1 << t) & -2u); // type
+			std::cout << "\t" << t; // type
 			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
 			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
 			std::cout << std::endl;
@@ -98,7 +99,7 @@ public:
 	}
 
 	bool is_finished() const {
-		std::cout << "========== #" << count << " ==========" << std::endl;
+		//std::cout << "========== #" << count << " ==========" << std::endl;
 		return count >= total;
 	}
 

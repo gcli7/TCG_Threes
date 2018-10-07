@@ -1,2 +1,5 @@
 # Ignore the executable file
 Threes
+
+# Ignore the executable file
+*.txt
