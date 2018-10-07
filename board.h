@@ -64,11 +64,11 @@ public:
 	 */
 	reward slide(unsigned opcode) {
 		switch (opcode & 0b11) {
-		case 0: return slide_up();
-		case 1: return slide_right();
-		case 2: return slide_down();
-		case 3: return slide_left();
-		default: return -1;
+			case 0: return slide_up();
+			case 1: return slide_right();
+			case 2: return slide_down();
+			case 3: return slide_left();
+			default: return -1;
 		}
 	}
 

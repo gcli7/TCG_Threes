@@ -77,7 +77,7 @@ public:
 			if (after(pos) != 0) continue;
 			int random_num = popup(engine);
 			board::cell tile = random_num ? 1 : 2;
-			std::cout << "popup = " << random_num << ", value = " << bag[random_num] << std::endl;
+			//std::cout << "popup = " << random_num << ", value = " << bag[random_num] << std::endl;
 			bag.erase(bag.begin() + random_num);
 			return action::place(pos, tile);
 		}
@@ -100,11 +100,19 @@ public:
 		opcode({ 0, 1, 2, 3 }) {}
 
 	virtual action take_action(const board& before) {
+		int best_op = -1;
+		board::reward best_reward = -1;
+
 		std::shuffle(opcode.begin(), opcode.end(), engine);
 		for (int op : opcode) {
 			board::reward reward = board(before).slide(op);
-			if (reward != -1) return action::slide(op);
+			if (reward > best_reward) {
+				best_reward = reward;
+				best_op = op;
+			}
 		}
+		if(best_op != -1)
+			return action::slide(best_op);
 		return action();
 	}
 
