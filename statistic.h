@@ -47,6 +47,7 @@ public:
 	 *  '22.4%': 22.4% (224 games) terminated with 8192-tiles (the largest)
 	 */
 	void show(bool tstat = true) const {
+		const int base[] = {0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144};
 		size_t blk = std::min(data.size(), block);
 		size_t stat[64] = { 0 };
 		size_t sop = 0, pop = 0, eop = 0;
@@ -57,7 +58,7 @@ public:
 			auto& ep = *(--it);
 			sum += ep.score();
 			max = std::max(ep.score(), max);
-			stat[*std::max_element(&(ep.state()(0)), &(ep.state()(14)))]++;
+			stat[*std::max_element(&(ep.state()(0)), &(ep.state()(16)))]++;
 			sop += ep.step();
 			pop += ep.step(action::slide::type);
 			eop += ep.step(action::place::type);
@@ -82,8 +83,7 @@ public:
 		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
 			if (stat[t] == 0) continue;
 			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
-			//std::cout << "\t" << ((1 << t) & -2u); // type
-			std::cout << "\t" << t; // type
+			std::cout << "\t" << base[t]; // type
 			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
 			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
 			std::cout << std::endl;
@@ -99,7 +99,6 @@ public:
 	}
 
 	bool is_finished() const {
-		//std::cout << "========== #" << count << " ==========" << std::endl;
 		return count >= total;
 	}
 

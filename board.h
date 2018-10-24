@@ -2,6 +2,7 @@
 #include <array>
 #include <iostream>
 #include <iomanip>
+#include <cmath>
 
 /**
  * array-based board for 2048
@@ -55,6 +56,7 @@ public:
 		if (pos >= 16) return -1;
 		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
+		if (tile == 3) return 3;
 		return 0;
 	}
 
@@ -90,7 +92,7 @@ public:
 				}
 				else if (row[c] == row[c-1]) {
 					row[c-1] += 1;
-					score += row[c-1];
+					score += pow(3, row[c] - 2);
 					row[c] = 0;
 				}
 			}

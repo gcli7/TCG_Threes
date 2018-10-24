@@ -6,6 +6,7 @@
 #include <sstream>
 #include <chrono>
 #include <numeric>
+#include <cmath>
 #include "board.h"
 #include "action.h"
 #include "agent.h"

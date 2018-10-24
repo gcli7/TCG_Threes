@@ -5,9 +5,15 @@
 #include <map>
 #include <vector>
 #include <type_traits>
+#include <cmath>
 #include <algorithm>
 #include "board.h"
 #include "action.h"
+#include "weight.h"
+#include <fstream>
+
+// there are 15 possibilities for tiles
+#define TILE_P 15
 
 class agent {
 public:
@@ -55,6 +61,99 @@ protected:
 };
 
 /**
+ * base agent for agents with weight tables
+ */
+class weight_agent : public agent {
+public:
+	weight_agent(const std::string& args = "") : agent(args), opcode({ 0, 1, 2, 3 }) {
+		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
+			init_weights(meta["init"]);
+		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
+			load_weights(meta["load"]);
+	}
+	virtual ~weight_agent() {
+		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
+			save_weights(meta["save"]);
+	}
+
+	virtual action take_action(const board& before, int& next_op) {
+		int best_op = -1;
+		float best_weights = -1;
+
+		for (int& op : opcode) {
+			float temp_weights = board(before).slide(op) /* + predict_next_step() */ ;
+			if (temp_weights > best_weights) {
+				best_weights = temp_weights;
+				best_op = op;
+			}
+		}
+		if(best_op != -1) {
+			next_op = best_op;
+			return action::slide(best_op);
+		}
+		return action();
+	}
+
+protected:
+	virtual void init_weights(const std::string& info) {
+		/*
+		 * 8 x 4-tuple
+		 * there are 15^4 possibilities for tuples
+		 */
+		int possibilities = pow(TILE_P, 4);
+		for(int i = 0; i < (int)weight_index.size(); i++)
+			net.emplace_back(possibilities);
+	}
+	virtual void load_weights(const std::string& path) {
+		std::ifstream in(path, std::ios::in | std::ios::binary);
+		if (!in.is_open()) std::exit(-1);
+		uint32_t size;
+		in.read(reinterpret_cast<char*>(&size), sizeof(size));
+		net.resize(size);
+		for (weight& w : net) in >> w;
+		in.close();
+	}
+	virtual void save_weights(const std::string& path) {
+		std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
+		if (!out.is_open()) std::exit(-1);
+		uint32_t size = net.size();
+		out.write(reinterpret_cast<char*>(&size), sizeof(size));
+		for (weight& w : net) out << w;
+		out.close();
+	}
+
+protected:
+	std::array<int, 4> opcode;
+	std::vector<weight> net;
+	std::vector<board> after_states;
+	const std::array<int, 4> coef = { (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1),
+									  (int)std::pow(TILE_P, 2), (int)std::pow(TILE_P, 3) };
+	const std::array<std::array<int, 4>, 8> weight_index = {{ {{0, 1, 2, 3}},
+															  {{4, 5, 6, 7}},
+															  {{8, 9, 10, 11}},
+															  {{12, 13, 14, 15}},
+															  {{0, 4, 8, 12}},
+															  {{1, 5, 9, 13}},
+															  {{2, 6, 10, 14}},
+															  {{3, 7, 11, 15}} }};
+};
+
+/**
+ * base agent for agents with a learning rate
+ */
+class learning_agent : public agent {
+public:
+	learning_agent(const std::string& args = "") : agent(args), alpha(0.1f) {
+		if (meta.find("alpha") != meta.end())
+			alpha = float(meta["alpha"]);
+	}
+	virtual ~learning_agent() {}
+
+protected:
+	float alpha;
+};
+
+/**
  * random environment
  * add a new random tile to an empty cell
  * 2-tile: 90%
@@ -66,9 +165,8 @@ public:
 		counter(0), popup(0, 2) {}
 
 	virtual action take_action(const board& after, int& last_op) {
-		//std::cout << "last_op = " << last_op << std::endl;
-
 		if (last_op == -2) {
+			// initialize bag at the beginning of a new game
 			if(counter == 0)
 				bag.clear();
 			counter = (counter + 1) % 9;
@@ -90,7 +188,6 @@ public:
 
 	template <class T>
 	action generate_tile(const board& after, T& space){
-		//std::cout << "\tbag's size = " << bag.size() << std::endl;
 		if (bag.empty()) {
 			for(int i = 1; i <= 3; i++)
 				bag.push_back(i);
@@ -103,7 +200,6 @@ public:
 			int random_num = popup(engine);
 			board::cell tile = bag[random_num];
 			bag.erase(bag.begin() + random_num);
-			//std::cout << "pos = " << pos << ", random_num = " << random_num << ", tile = " << tile << std::endl;
 			return action::place(pos, tile);
 		}
 		return action();
@@ -125,12 +221,12 @@ public:
 	player(const std::string& args = "") : random_agent("name=dummy role=player " + args),
 		opcode({ 0, 1, 2, 3 }) {}
 
-	virtual action take_action(const board& before, int& last_op) {
+	virtual action take_action(const board& before, int& next_op) {
 		int best_op = -1;
 		board::reward best_reward = -1;
 
 		std::shuffle(opcode.begin(), opcode.end(), engine);
-		for (int op : opcode) {
+		for (int& op : opcode) {
 			board::reward reward = board(before).slide(op);
 			if (reward > best_reward) {
 				best_reward = reward;
@@ -138,8 +234,7 @@ public:
 			}
 		}
 		if(best_op != -1) {
-			//std::cout << "direction = " << best_op << std::endl;
-			last_op = best_op;
+			next_op = best_op;
 			return action::slide(best_op);
 		}
 		return action();
