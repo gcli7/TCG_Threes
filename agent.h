@@ -13,10 +13,10 @@
 #include "weight.h"
 #include <fstream>
 
-// there are 15 possibilities for tiles
+// there are 15 probabilities for tiles
 #define TILE_P 15
-#define TUPLE_L 4
-#define TUPLE_N 8
+#define TUPLE_L 6
+#define TUPLE_N 32
 
 typedef struct board_state {
 	board b;
@@ -73,7 +73,7 @@ protected:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.003f), opcode({ 0, 1, 2, 3 }) {
+	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.0015625f), opcode({ 0, 1, 2, 3 }) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
 		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
@@ -83,12 +83,11 @@ public:
 	}
 	virtual ~weight_agent() {
 		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
-			save_weights(meta["save"]);
+			save_weights("weights.bin");
 	}
 
 	virtual action take_action(const board& before, int& next_op) {
 		int best_op = -1;
-		//float best_weights = std::numeric_limits<float>::min();
 		float best_weights = -999999999;
 		BS bs;
 
@@ -131,7 +130,7 @@ protected:
 		/*
 		 * 8 x 4-tuple
 		 * each tuple may be 0, 1, 2, 3, 6, 12, ... or 6144 (index is from 0 to 14)
-		 * there are 15^4 possibilities for tuples
+		 * there are 15^4 probabilities for tuples
 		 */
 		int possibilities = pow(TILE_P, TUPLE_L);
 		for(int i = 0; i < TUPLE_N; i++)
@@ -188,8 +187,50 @@ protected:
 	std::array<int, 4> opcode;
 	std::vector<weight> net;
 	std::vector<BS> after_states;
-	const std::array<int, TUPLE_L> coef = { (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1),
-									  		(int)std::pow(TILE_P, 2), (int)std::pow(TILE_P, 3) };
+	const std::array<int, 6> coef = {{ (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1), (int)std::pow(TILE_P, 2),
+									   (int)std::pow(TILE_P, 3), (int)std::pow(TILE_P, 4), (int)std::pow(TILE_P, 5) }};
+	// this is for 32 x 6-tuple
+	const std::array<std::array<int, TUPLE_L>, TUPLE_N> weight_index = {{ {{0, 4, 8, 9, 12, 13}},
+																	  	  {{1, 5, 9, 10, 13, 14}},
+																		  {{1, 2, 5, 6, 9, 10}},
+																		  {{2, 3, 6, 7, 10, 11}},
+																		
+																		  {{3, 2, 1, 5, 0, 4}},
+																		  {{7, 6, 5, 9, 4, 8}},
+																		  {{7, 11, 6, 10, 5, 9}},
+																		  {{11, 15, 10, 14, 9, 13}},
+
+																		  {{15, 11, 7, 6, 3, 2}},
+																		  {{14, 10, 6, 5, 2, 1}},
+																		  {{14, 13, 10, 9, 6, 5}},
+																		  {{13, 12, 9, 8, 5, 4}},
+
+																		  {{12, 13, 14, 10, 15, 11}},
+ 																		  {{8, 9, 10, 6, 11, 7}},
+																		  {{8, 4, 9, 5, 10, 6}},
+																		  {{4, 0, 5, 1, 6, 2}},
+
+																		  {{3, 7, 11, 10, 15, 14}},
+																		  {{2, 6, 10, 9, 14, 13}},
+																		  {{2, 1, 6, 5, 10, 9}},
+																		  {{1, 0, 5, 4, 9, 8}},
+
+																		  {{0, 1, 2, 6, 3, 7}},
+																		  {{4, 5, 6, 10, 7, 11}},
+																		  {{4, 8, 5, 9, 6, 10}},
+																		  {{8, 12, 9, 13, 10, 14}},
+
+																		  {{12, 8, 4, 5, 0, 1}},
+																		  {{13, 9, 5, 6, 1, 2}},
+																		  {{13, 14, 9, 10, 5, 6}},
+																		  {{14, 15, 10, 11, 6, 7}},
+
+																		  {{15, 14, 13, 9, 12, 8}},
+																		  {{11, 10, 9, 5, 8, 4}},
+																		  {{11, 7, 10, 6, 9, 5}},
+																		  {{7, 3, 6, 2, 5, 1}} }};
+	/*
+	// this is for 8 x 4-tuple
 	const std::array<std::array<int, TUPLE_L>, TUPLE_N> weight_index = {{ {{0, 1, 2, 3}},
 															 			  {{4, 5, 6, 7}},
 															  			  {{8, 9, 10, 11}},
@@ -198,6 +239,7 @@ protected:
 															  			  {{1, 5, 9, 13}},
 															  			  {{2, 6, 10, 14}},
 															  			  {{3, 7, 11, 15}} }};
+	*/
 };
 
 /**
