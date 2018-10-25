@@ -5,7 +5,7 @@ Threes
 *.txt
 
 # Ignore train data
-weights.bin
+*.bin
 
 # Ignore auto training script
 *.py
