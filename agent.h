@@ -73,7 +73,7 @@ protected:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.1f), opcode({ 0, 1, 2, 3 }) {
+	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.003f), opcode({ 0, 1, 2, 3 }) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
 		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
@@ -117,6 +117,11 @@ public:
 		// remove initial board
 		after_states.erase(after_states.begin());
 
+		// first, train final board state
+		train_weights_terminal(after_states[after_states.size()-1].b);
+		for(int i = after_states.size() - 2; i >= 0; i--)
+			train_weights(after_states[i].b, after_states[i+1].b, after_states[i].r);
+
 		// initialize after_states at the end of the training
 		after_states.clear();
 	}
@@ -156,8 +161,8 @@ protected:
 			net[i][get_feature_key(b, i)] += err;
 	}
 
-	virtual void train_weights_terminal(const board& b, board::reward& reward) {
-		float err = learning_rate * (reward - get_board_value(b));
+	virtual void train_weights_terminal(const board& b) {
+		float err = learning_rate * (0 - get_board_value(b));
 		for(int i = 0; i < TUPLE_N; i++)
 			net[i][get_feature_key(b, i)] += err;
 	}

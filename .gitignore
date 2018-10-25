@@ -6,3 +6,6 @@ Threes
 
 # Ignore train data
 weights.bin
+
+# Ignore auto training script
+*.py
