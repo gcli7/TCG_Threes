@@ -72,6 +72,7 @@ int main(int argc, const char* argv[]) {
 			if (who.check_for_win(game.state())) break;
 		}
 		agent& win = game.last_turns(play, evil);
+		// train this game
 		play.train_TDL();
 		stat.close_episode(win.name());
 		play.close_episode(win.name());

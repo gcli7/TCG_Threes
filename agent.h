@@ -150,6 +150,18 @@ protected:
 		out.close();
 	}
 
+	virtual void train_weights(const board& b, const board& next_b, board::reward& reward) {
+		float err = learning_rate * (get_board_value(next_b) + reward - get_board_value(b));
+		for(int i = 0; i < TUPLE_N; i++)
+			net[i][get_feature_key(b, i)] += err;
+	}
+
+	virtual void train_weights_terminal(const board& b, board::reward& reward) {
+		float err = learning_rate * (reward - get_board_value(b));
+		for(int i = 0; i < TUPLE_N; i++)
+			net[i][get_feature_key(b, i)] += err;
+	}
+
 	virtual float get_board_value(const board& b) {
 		float sum = net[0][get_feature_key(b, 0)];
 		for(int i = 1; i < TUPLE_N; i++)
