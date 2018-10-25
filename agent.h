@@ -2,6 +2,7 @@
 #include <string>
 #include <random>
 #include <sstream>
+#include <limits>
 #include <map>
 #include <vector>
 #include <type_traits>
@@ -14,6 +15,13 @@
 
 // there are 15 possibilities for tiles
 #define TILE_P 15
+#define TUPLE_L 4
+#define TUPLE_N 8
+
+typedef struct board_state {
+	board b;
+	board::reward r;
+} BS;
 
 class agent {
 public:
@@ -65,11 +73,13 @@ protected:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args), opcode({ 0, 1, 2, 3 }) {
+	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.1f), opcode({ 0, 1, 2, 3 }) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
 		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
 			load_weights(meta["load"]);
+		if (meta.find("alpha") != meta.end())
+			learning_rate = float(meta["alpha"]);
 	}
 	virtual ~weight_agent() {
 		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
@@ -78,30 +88,48 @@ public:
 
 	virtual action take_action(const board& before, int& next_op) {
 		int best_op = -1;
-		float best_weights = -1;
+		//float best_weights = std::numeric_limits<float>::min();
+		float best_weights = -999999999;
+		BS bs;
 
 		for (int& op : opcode) {
-			float temp_weights = board(before).slide(op) /* + predict_next_step() */ ;
-			if (temp_weights > best_weights) {
-				best_weights = temp_weights;
+			board b = board(before);
+			board::reward reward = b.slide(op);
+			if(reward == -1) continue;
+			float weights = reward + get_board_value(b);
+			if (weights > best_weights) {
 				best_op = op;
+				best_weights = weights;
+				bs.r = reward;
+				bs.b = b;
 			}
 		}
 		if(best_op != -1) {
 			next_op = best_op;
-			return action::slide(best_op);
+			after_states.emplace_back(bs);
+			return action::slide(next_op);
 		}
+
 		return action();
+	}
+
+	virtual void train_TDL() {
+		// remove initial board
+		after_states.erase(after_states.begin());
+
+		// initialize after_states at the end of the training
+		after_states.clear();
 	}
 
 protected:
 	virtual void init_weights(const std::string& info) {
 		/*
 		 * 8 x 4-tuple
+		 * each tuple may be 0, 1, 2, 3, 6, 12, ... or 6144 (index is from 0 to 14)
 		 * there are 15^4 possibilities for tuples
 		 */
-		int possibilities = pow(TILE_P, 4);
-		for(int i = 0; i < (int)weight_index.size(); i++)
+		int possibilities = pow(TILE_P, TUPLE_L);
+		for(int i = 0; i < TUPLE_N; i++)
 			net.emplace_back(possibilities);
 	}
 	virtual void load_weights(const std::string& path) {
@@ -122,25 +150,42 @@ protected:
 		out.close();
 	}
 
+	virtual float get_board_value(const board& b) {
+		float sum = net[0][get_feature_key(b, 0)];
+		for(int i = 1; i < TUPLE_N; i++)
+			sum += net[i][get_feature_key(b, i)];
+
+		return sum;
+	}
+
+	virtual int get_feature_key(const board& b, const int& row) {
+		int key_sum = b(weight_index[row][0]) * coef[0];
+		for(int i = 1; i < TUPLE_L; i++)
+			key_sum += b(weight_index[row][i]) * coef[i];
+
+		return key_sum;
+	}
+
 protected:
+	float learning_rate;
 	std::array<int, 4> opcode;
 	std::vector<weight> net;
-	std::vector<board> after_states;
-	const std::array<int, 4> coef = { (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1),
-									  (int)std::pow(TILE_P, 2), (int)std::pow(TILE_P, 3) };
-	const std::array<std::array<int, 4>, 8> weight_index = {{ {{0, 1, 2, 3}},
-															  {{4, 5, 6, 7}},
-															  {{8, 9, 10, 11}},
-															  {{12, 13, 14, 15}},
-															  {{0, 4, 8, 12}},
-															  {{1, 5, 9, 13}},
-															  {{2, 6, 10, 14}},
-															  {{3, 7, 11, 15}} }};
+	std::vector<BS> after_states;
+	const std::array<int, TUPLE_L> coef = { (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1),
+									  		(int)std::pow(TILE_P, 2), (int)std::pow(TILE_P, 3) };
+	const std::array<std::array<int, TUPLE_L>, TUPLE_N> weight_index = {{ {{0, 1, 2, 3}},
+															 			  {{4, 5, 6, 7}},
+															  			  {{8, 9, 10, 11}},
+															  			  {{12, 13, 14, 15}},
+															  			  {{0, 4, 8, 12}},
+															  			  {{1, 5, 9, 13}},
+															  			  {{2, 6, 10, 14}},
+															  			  {{3, 7, 11, 15}} }};
 };
 
 /**
  * base agent for agents with a learning rate
- */
+ *
 class learning_agent : public agent {
 public:
 	learning_agent(const std::string& args = "") : agent(args), alpha(0.1f) {
@@ -152,6 +197,7 @@ public:
 protected:
 	float alpha;
 };
+*/
 
 /**
  * random environment
