@@ -5,6 +5,8 @@
 #include "board.h"
 #include <numeric>
 
+#define TILE_P 15
+
 class state_type {
 public:
 	enum type : char {
@@ -77,8 +79,20 @@ public:
 public:
 	solver(const std::string& args) {
 		// TODO: explore the tree and save the result
+		before_value = new float[table_size];
+		after_value = new float[table_size];
+
+		for(int i = 0; i < table_size; i++) {
+			before_value[i] = -1;
+			after_value[i] = -1;
+		}
 
 //		std::cout << "feel free to display some messages..." << std::endl;
+	}
+
+	~solver() {
+		free(before_value);
+		free(after_value);
 	}
 
 	answer solve(const board& state, state_type type = state_type::before) {
@@ -96,4 +110,9 @@ public:
 
 private:
 	// TODO: place your transposition table here
+	const std::array<int, 6> coef = {{ (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1), (int)std::pow(TILE_P, 2),
+									   (int)std::pow(TILE_P, 3), (int)std::pow(TILE_P, 4), (int)std::pow(TILE_P, 5) }};
+	const int table_size = std::pow(TILE_P, 6);
+	float *before_value;
+	float *after_value;
 };
