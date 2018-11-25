@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <vector>
 
 /**
  * array-based board for Threes
@@ -21,8 +22,8 @@ public:
 	typedef int reward;
 
 public:
-	board() : last_op(-2), tile(), attr(0) {}
-	board(const grid& b, data v = 0) : last_op(-2), tile(b), attr(v) {}
+	board() : last_op(-2), hint(-1), bag({1, 2, 3}), tile(), attr(0) {}
+	board(const grid& b, data v = 0) : last_op(-2), hint(-1), tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -144,6 +145,32 @@ public:
 	}
 
 public:
+	void init_bag_tiles() {
+		bag = {1, 2, 3};
+	}
+
+	bool remove_bag_tile(const int t) {
+		for(unsigned int i = 0; i < bag.size(); i++)
+			if(bag[i] == t) {
+				bag.erase(bag.begin() + i);
+                if(bag.empty())
+                    init_bag_tiles();
+				return true;
+			}
+		return false;
+	}
+
+    int get_bag_tile() {
+        if(bag.empty())
+            init_bag_tiles();
+
+        int result = bag.back();
+        bag.pop_back();
+
+        return result;
+    }
+
+public:
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
 		for (int i = 0; i < 6; i++) {
 			out << std::setw(std::min(i, 1)) << "" << ((1 << b(i)) & -2u);
@@ -160,6 +187,8 @@ public:
 	}
 public:
 	int last_op;
+    int hint;
+	std::vector<int> bag;
 
 private:
 	grid tile;
