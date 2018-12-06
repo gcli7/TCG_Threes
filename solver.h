@@ -5,6 +5,7 @@
 #include "board.h"
 #include <numeric>
 #include <unordered_map>
+#include <vector>
 
 #define TILE_P 15
 #define BEFORE 0
@@ -106,6 +107,7 @@ public:
     // player round
     answer goto_before_state(board b) {
         std::unordered_map<unsigned long, answer>::iterator mi;
+        b.last_op = -1;
         mi = before_board_table.find(calculate_key(b, BEFORE));
         if (mi != before_board_table.end())
             return mi->second;
@@ -114,7 +116,6 @@ public:
         answer value;
         bool flag = true;
         best_value.avg = -1.0;
-        b.last_op = -1;
 
         for (const int& op : {0, 1, 2, 3}) {
             board player_board = board(b);
@@ -145,7 +146,51 @@ public:
 
     // put tile round
     answer goto_after_state(board b) {
-        return {};
+        std::unordered_map<unsigned long, answer>::iterator mi;
+        mi = after_board_table.find(calculate_key(b, AFTER));
+        if (mi != after_board_table.end())
+            return mi->second;
+
+        answer ret_value;
+        answer value;
+        int counter = 0;
+        std::vector<int> side_line;
+
+        switch (b.last_op) {
+            case 0: side_line = {3, 4, 5}; break;
+            case 1: side_line = {0, 3}; break;
+            case 2: side_line = {0, 1, 2}; break;
+            case 3: side_line = {2, 5}; break;
+        }
+
+        for (std::vector<int>::iterator vi = side_line.begin(); vi != side_line.end(); vi++) {
+            board put_board = board(b);
+            board::reward reward = put_board.slide(b.info());
+            if (reward == -1) continue;
+            put_board.remove_tile(b.info());
+            put_board.check_bag();
+            put_board.last_op = -1;
+            for (std::vector<int>::iterator vj = put_board.bag.begin(); vj != put_board.bag.end(); vj++) {
+                put_board.info(*vj);
+                mi = before_board_table.find(calculate_key(b, BEFORE));
+                if (mi != before_board_table.end())
+                    value = mi->second;
+                else
+                    value = goto_before_state(put_board);
+
+                if (value.max > ret_value.max)
+                    ret_value.max = value.max;
+                ret_value.avg += value.avg;
+                if (value.min < ret_value.min)
+                    ret_value.min = value.min;
+                counter++;
+            }
+        }
+
+        ret_value.avg /= counter;
+        after_board_table[calculate_key(b, AFTER)] = ret_value;
+
+        return ret_value;
     }
 
     int calculate_board_value(const board& b) {
