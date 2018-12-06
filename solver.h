@@ -96,6 +96,8 @@ public:
                 start.remove_tile(t);
 
                 for (unsigned int h = 0; h < start.bag.size(); h++) {
+                    show_board(start, 0);
+
                     start.info(start.bag[h]);
 				    goto_before_state(start);
                 }
@@ -106,6 +108,8 @@ public:
 
     // player round
     answer goto_before_state(board b) {
+        show_board(b, 1);
+
         std::unordered_map<unsigned long, answer>::iterator mi;
         b.last_op = -1;
         mi = before_board_table.find(calculate_key(b, BEFORE));
@@ -146,6 +150,8 @@ public:
 
     // put tile round
     answer goto_after_state(board b) {
+        show_board(b, 2);
+
         std::unordered_map<unsigned long, answer>::iterator mi;
         mi = after_board_table.find(calculate_key(b, AFTER));
         if (mi != after_board_table.end())
@@ -231,6 +237,19 @@ public:
 		// for an illegal state, simply return {}
 		return {};
 	}
+
+    void show_board(const board& b, const int& type) {
+        switch (type) {
+            case 0: std::cout << "===========" << std::endl;    break;
+            case 1: std::cout << "==before===" << std::endl;    break;
+            case 2: std::cout << "===after===" << std::endl;    break;
+        }
+        
+        std::cout << "| " << b(0) << "  " << b(1) << "  " << b(2) << " |" << std::endl;
+        std::cout << "|=========|" << std::endl;
+        std::cout << "| " << b(3) << "  " << b(4) << "  " << b(5) << " |" << std::endl;
+        std::cout << "===========" << std::endl;
+    }
 
 private:
 	// TODO: place your transposition table here
