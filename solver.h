@@ -4,6 +4,9 @@
 #include <cmath>
 #include "board.h"
 #include <numeric>
+#include <unordered_map>
+
+#define TILE_P 15
 
 class state_type {
 public:
@@ -77,9 +80,36 @@ public:
 public:
 	solver(const std::string& args) {
 		// TODO: explore the tree and save the result
+        for(int p = 0; p < 6; p++) {
+			for(int t = 1; t <= 3; t++) {
+				std::cout << "Initialization for position = " << p << ", tile = " << t << " ..." << std::endl;
 
-//		std::cout << "feel free to display some messages..." << std::endl;
+				board start;
+                for(int i = 0; i < 6; i++)
+                    start(i) = 0;
+                start.check_bag();
+
+				start(p) = t;
+                start.remove_tile(t);
+
+                for(unsigned int h = 0; h < start.bag.size(); h++) {
+                    start.info(start.bag[h]);
+				    goto_before_state(start);
+                }
+			}
+		}
+        std::cout << "Initialization has been completed." << std::endl;
 	}
+
+    // player round
+    answer goto_before_state(board b) {
+        return {};
+    }
+
+    // put tile round
+    answer goto_after_state(board b) {
+        return {};
+    }
 
 	answer solve(const board& state, state_type type = state_type::before) {
 		// TODO: find the answer in the lookup table and return it
@@ -96,4 +126,7 @@ public:
 
 private:
 	// TODO: place your transposition table here
+    std::unordered_map<unsigned long, value_t> board_table;
+    const std::array<int, 9> coef = {{ (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1), (int)std::pow(TILE_P, 2), (int)std::pow(TILE_P, 3), (int)std::pow(TILE_P, 4),
+                                       (int)std::pow(TILE_P, 5), (int)std::pow(TILE_P, 6), (int)std::pow(TILE_P, 7), (int)std::pow(TILE_P, 8) }};
 };
