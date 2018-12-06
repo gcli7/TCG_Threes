@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <vector>
+#include <algorithm>
 
 /**
  * array-based board for Threes
@@ -21,8 +23,8 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(0) {}
-	board(const grid& b, data v = 0) : tile(b), attr(v) {}
+	board() : last_op(-1), tile(), attr(0) {}
+	board(const grid& b, data v = 0) : last_op(-1), tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -169,6 +171,24 @@ public:
 		}
 		return in;
 	}
+
+public:
+    void check_bag() {
+        if (bag.empty())
+            bag = {1, 2, 3};
+    }
+
+    void remove_tile(int t) {
+        std::vector<int>::iterator vi = find(bag.begin(), bag.end(), t);
+        if (vi != bag.end())
+            bag.erase(vi);
+        else
+            std::cout << "Bag : an error at removing tile." << std::endl;
+    }
+
+public:
+    std::vector<int> bag;
+    int last_op;
 
 private:
 	grid tile;
