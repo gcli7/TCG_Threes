@@ -56,9 +56,9 @@ public:
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
-		if (tile != 1 && tile != 2 && tile != 3) return -1;
+		//if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
-		if (tile == 3) return 3;
+		if (tile >= 3) return 3 * std::pow(2, tile - 3);
 		return 0;
 	}
 

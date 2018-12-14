@@ -297,8 +297,9 @@ public:
 	template <class T>
 	action generate_tile(const board& after, T& space){
 		if (bag.empty()) {
-			for(int i = 1; i <= 3; i++)
-				bag.push_back(i);
+			for (int i = 1; i <= 3; i++)
+				for (int j = 0; j < 4; j++)
+					bag.push_back(i);
 		}
 		random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)(bag.size() - 1)});
 
