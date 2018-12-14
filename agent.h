@@ -275,8 +275,11 @@ public:
 	virtual action take_action(const board& after, int& last_op) {
 		if (last_op == NO_OP) {
 			// initialize bag at the beginning of a new game
-			if(counter == 0)
+			if (counter == 0) {
 				bag.clear();
+				max_tile = 0;
+				bonus_counter = 0;
+			}
 			counter = (counter + 1) % 9;
 
 			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
@@ -297,9 +300,16 @@ public:
 	template <class T>
 	action generate_tile(const board& after, T& space){
 		if (bag.empty()) {
+			check_bonus(after);
 			for (int i = 1; i <= 3; i++)
-				for (int j = 0; j < 4; j++)
+				for (int j = 0; j < 4; j++) {
 					bag.push_back(i);
+					bonus_counter++;
+					if (max_tile >= 7 && bonus_counter >= 21) {
+						bag.push_back(4);
+						bonus_counter %= 21;
+					}
+				}
 		}
 		random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)(bag.size() - 1)});
 
@@ -314,8 +324,17 @@ public:
 		return action();
 	}
 
+	void check_bonus(const board& b) {
+		for (int p = 0; p < 16; p++)
+			if (b(p) > max_tile)
+				max_tile = b(p);
+	}
+
 private:
+	int temp;
 	int counter;
+	int max_tile;
+	int bonus_counter;
 	std::vector<int> bag;
 	std::array<int, 4> space;
 	std::uniform_int_distribution<int> random_generator;
