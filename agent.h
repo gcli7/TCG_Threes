@@ -15,12 +15,14 @@
 
 // there are 15 probabilities for tiles
 #define TILE_P 15
-#define TUPLE_L 6
-#define TUPLE_N 32
+#define TUPLE_LEN 6
+#define TUPLE_NUM 32
 
 typedef struct board_state {
 	board b;
 	board::reward r;
+
+	board_state(board bb, board::reward rr) : b(bb), r(rr) { }
 } BS;
 
 class agent {
@@ -87,9 +89,10 @@ public:
 	}
 
 	virtual action take_action(const board& before, int& next_op) {
-		int best_op = -1;
+		int best_op = NO_OP;
 		float best_weights = -999999999;
-		BS bs;
+		board::reward best_reward = -1;
+		board best_board;
 
 		for (int& op : opcode) {
 			board b = board(before);
@@ -99,13 +102,13 @@ public:
 			if (weights > best_weights) {
 				best_op = op;
 				best_weights = weights;
-				bs.r = reward;
-				bs.b = b;
+				best_board = b;
+				best_reward = reward;
 			}
 		}
-		if(best_op != -1) {
+		if(best_op != NO_OP) {
 			next_op = best_op;
-			after_states.emplace_back(bs);
+			after_states.emplace_back(best_board, best_reward);
 			return action::slide(next_op);
 		}
 
@@ -132,9 +135,9 @@ protected:
 		 * each tuple may be 0, 1, 2, 3, 6, 12, ... or 6144 (index is from 0 to 14)
 		 * there are 15^4 probabilities for tuples
 		 */
-		int possibilities = pow(TILE_P, TUPLE_L);
-		for(int i = 0; i < TUPLE_N; i++)
-			net.emplace_back(possibilities);
+		int possibilities = pow(TILE_P, TUPLE_LEN);
+		for(int i = 0; i < TUPLE_NUM; i++)
+			net.push_back(possibilities);
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -156,19 +159,19 @@ protected:
 
 	virtual void train_weights(const board& b, const board& next_b, board::reward& reward) {
 		float err = learning_rate * (get_board_value(next_b) + reward - get_board_value(b));
-		for(int i = 0; i < TUPLE_N; i++)
+		for(int i = 0; i < TUPLE_NUM; i++)
 			net[i][get_feature_key(b, i)] += err;
 	}
 
 	virtual void train_weights_terminal(const board& b) {
 		float err = learning_rate * (0 - get_board_value(b));
-		for(int i = 0; i < TUPLE_N; i++)
+		for(int i = 0; i < TUPLE_NUM; i++)
 			net[i][get_feature_key(b, i)] += err;
 	}
 
 	virtual float get_board_value(const board& b) {
 		float sum = net[0][get_feature_key(b, 0)];
-		for(int i = 1; i < TUPLE_N; i++)
+		for(int i = 1; i < TUPLE_NUM; i++)
 			sum += net[i][get_feature_key(b, i)];
 
 		return sum;
@@ -176,7 +179,7 @@ protected:
 
 	virtual int get_feature_key(const board& b, const int& row) {
 		int key_sum = b(weight_index[row][0]) * coef[0];
-		for(int i = 1; i < TUPLE_L; i++)
+		for(int i = 1; i < TUPLE_LEN; i++)
 			key_sum += b(weight_index[row][i]) * coef[i];
 
 		return key_sum;
@@ -190,7 +193,7 @@ protected:
 	const std::array<int, 6> coef = {{ (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1), (int)std::pow(TILE_P, 2),
 									   (int)std::pow(TILE_P, 3), (int)std::pow(TILE_P, 4), (int)std::pow(TILE_P, 5) }};
 	// this is for 32 x 6-tuple
-	const std::array<std::array<int, TUPLE_L>, TUPLE_N> weight_index = {{ {{0, 4, 8, 9, 12, 13}},
+	const std::array<std::array<int, TUPLE_LEN>, TUPLE_NUM> weight_index = {{ {{0, 4, 8, 9, 12, 13}},
 																	  	  {{1, 5, 9, 10, 13, 14}},
 																		  {{1, 2, 5, 6, 9, 10}},
 																		  {{2, 3, 6, 7, 10, 11}},
@@ -231,7 +234,7 @@ protected:
 																		  {{7, 3, 6, 2, 5, 1}} }};
 	/*
 	// this is for 8 x 4-tuple
-	const std::array<std::array<int, TUPLE_L>, TUPLE_N> weight_index = {{ {{0, 1, 2, 3}},
+	const std::array<std::array<int, TUPLE_LEN>, TUPLE_NUM> weight_index = {{ {{0, 1, 2, 3}},
 															 			  {{4, 5, 6, 7}},
 															  			  {{8, 9, 10, 11}},
 															  			  {{12, 13, 14, 15}},
@@ -267,10 +270,10 @@ protected:
 class rndenv : public random_agent {
 public:
 	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
-		counter(0), random_generator(0, 2) {}
+		counter(0) {}
 
 	virtual action take_action(const board& after, int& last_op) {
-		if (last_op == -2) {
+		if (last_op == NO_OP) {
 			// initialize bag at the beginning of a new game
 			if(counter == 0)
 				bag.clear();
@@ -327,7 +330,7 @@ public:
 		opcode({ 0, 1, 2, 3 }) {}
 
 	virtual action take_action(const board& before, int& next_op) {
-		int best_op = -1;
+		int best_op = NO_OP;
 		board::reward best_reward = -1;
 
 		std::shuffle(opcode.begin(), opcode.end(), engine);
@@ -338,7 +341,7 @@ public:
 				best_op = op;
 			}
 		}
-		if(best_op != -1) {
+		if(best_op != NO_OP) {
 			next_op = best_op;
 			return action::slide(best_op);
 		}

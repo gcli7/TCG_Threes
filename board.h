@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <cmath>
 
+#define NO_OP 4
+
 /**
  * array-based board for 2048
  *
@@ -23,8 +25,8 @@ public:
 	typedef int reward;
 
 public:
-	board() : last_op(-2), tile(), attr(0) {}
-	board(const grid& b, data v = 0) : last_op(-2), tile(b), attr(v) {}
+	board() : last_op(NO_OP), tile(), attr(0) {}
+	board(const grid& b, data v = 0) : last_op(NO_OP), tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -99,18 +101,21 @@ public:
 		}
 		return (*this != prev) ? score : -1;
 	}
+
 	reward slide_right() {
 		reflect_horizontal();
 		reward score = slide_left();
 		reflect_horizontal();
 		return score;
 	}
+
 	reward slide_up() {
 		rotate_right();
 		reward score = slide_right();
 		rotate_left();
 		return score;
 	}
+
 	reward slide_down() {
 		rotate_right();
 		reward score = slide_left();
@@ -119,11 +124,9 @@ public:
 	}
 
 	void transpose() {
-		for (int r = 0; r < 4; r++) {
-			for (int c = r + 1; c < 4; c++) {
+		for (int r = 0; r < 4; r++)
+			for (int c = r + 1; c < 4; c++)
 				std::swap(tile[r][c], tile[c][r]);
-			}
-		}
 	}
 
 	void reflect_horizontal() {
