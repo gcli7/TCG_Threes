@@ -54,79 +54,8 @@ protected:
 		operator std::string() const { return value; }
 		template<typename numeric, typename = typename std::enable_if<std::is_arithmetic<numeric>::value, numeric>::type>
 		operator numeric() const { return numeric(std::stod(value)); }
-	};
+	};	
 	std::map<key, value> meta;
-};
-
-class random_agent : public agent {
-public:
-	random_agent(const std::string& args = "") : agent(args) {
-		if (meta.find("seed") != meta.end())
-			engine.seed(int(meta["seed"]));
-	}
-	virtual ~random_agent() {}
-
-protected:
-	std::default_random_engine engine;
-};
-
-/**
- * base agent for agents with weight tables
- */
-class weight_agent : public agent {
-public:
-	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.0015625f), opcode({ 0, 1, 2, 3 }) {
-		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
-			init_weights(meta["init"]);
-		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
-			load_weights(meta["load"]);
-		if (meta.find("alpha") != meta.end())
-			learning_rate = float(meta["alpha"]);
-	}
-	virtual ~weight_agent() {
-		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
-			save_weights("weights.bin");
-	}
-
-	virtual action take_action(const board& before, int& next_op) {
-		int best_op = NO_OP;
-		float best_weights = -999999999;
-		board::reward best_reward = -1;
-		board best_board;
-
-		for (int& op : opcode) {
-			board b = board(before);
-			board::reward reward = b.slide(op);
-			if(reward == -1) continue;
-			float weights = reward + get_board_value(b);
-			if (weights > best_weights) {
-				best_op = op;
-				best_weights = weights;
-				best_board = b;
-				best_reward = reward;
-			}
-		}
-		if(best_op != NO_OP) {
-			next_op = best_op;
-			after_states.emplace_back(best_board, best_reward);
-			return action::slide(next_op);
-		}
-
-		return action();
-	}
-
-	virtual void train_TDL() {
-		// remove initial board
-		after_states.erase(after_states.begin());
-
-		// first, train final board state
-		train_weights(after_states[after_states.size()-1].b);
-		for(int i = after_states.size() - 2; i >= 0; i--)
-			train_weights(after_states[i].b, after_states[i+1].b, after_states[i].r);
-
-		// initialize after_states at the end of the training
-		after_states.clear();
-	}
 
 protected:
 	virtual void init_weights(const std::string& info) {
@@ -139,36 +68,7 @@ protected:
 		for(int i = 0; i < TUPLE_NUM; i++)
 			net.push_back(possibilities);
 	}
-	virtual void load_weights(const std::string& path) {
-		std::ifstream in(path, std::ios::in | std::ios::binary);
-		if (!in.is_open()) std::exit(-1);
-		uint32_t size;
-		in.read(reinterpret_cast<char*>(&size), sizeof(size));
-		net.resize(size);
-		for (weight& w : net) in >> w;
-		in.close();
-	}
-	virtual void save_weights(const std::string& path) {
-		std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
-		if (!out.is_open()) std::exit(-1);
-		uint32_t size = net.size();
-		out.write(reinterpret_cast<char*>(&size), sizeof(size));
-		for (weight& w : net) out << w;
-		out.close();
-	}
-
-	virtual void train_weights(const board& b, const board& next_b, board::reward& reward) {
-		float err = learning_rate * (reward + get_board_value(next_b) - get_board_value(b));
-		for(int i = 0; i < TUPLE_NUM; i++)
-			net[i][get_feature_key(b, i)] += err;
-	}
-
-	virtual void train_weights(const board& b) {
-		float err = learning_rate * (0 - get_board_value(b));
-		for(int i = 0; i < TUPLE_NUM; i++)
-			net[i][get_feature_key(b, i)] += err;
-	}
-
+	
 	virtual float get_board_value(const board& b) {
 		float sum = net[0][get_feature_key(b, 0)];
 		for(int i = 1; i < TUPLE_NUM; i++)
@@ -185,11 +85,8 @@ protected:
 		return key_sum;
 	}
 
-protected:
-	float learning_rate;
-	std::array<int, 4> opcode;
 	std::vector<weight> net;
-	std::vector<BS> after_states;
+	const std::array<int, 4> opcode = {{ 0, 1, 2, 3 }};
 	const std::array<int, 6> coef = {{ (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1), (int)std::pow(TILE_P, 2),
 									   (int)std::pow(TILE_P, 3), (int)std::pow(TILE_P, 4), (int)std::pow(TILE_P, 5) }};
 	// this is for 32 x 6-tuple
@@ -243,6 +140,112 @@ protected:
 															  			  {{2, 6, 10, 14}},
 															  			  {{3, 7, 11, 15}} }};
 	*/
+};
+
+class random_agent : public agent {
+public:
+	random_agent(const std::string& args = "") : agent(args) {
+		if (meta.find("seed") != meta.end())
+			engine.seed(int(meta["seed"]));
+	}
+	virtual ~random_agent() {}
+
+protected:
+	std::default_random_engine engine;
+};
+
+/**
+ * base agent for agents with weight tables
+ */
+class weight_agent : public agent {
+public:
+	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.0015625f) {
+		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
+			init_weights(meta["init"]);
+		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
+			load_weights(meta["load"]);
+		if (meta.find("alpha") != meta.end())
+			learning_rate = float(meta["alpha"]);
+	}
+	virtual ~weight_agent() {
+		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
+			save_weights("weights.bin");
+	}
+
+	virtual action take_action(const board& before, int& next_op) {
+		int best_op = NO_OP;
+		float best_weights = -999999999;
+		board::reward best_reward = -1;
+		board best_board;
+
+		for (const int& op : opcode) {
+			board b = board(before);
+			board::reward reward = b.slide(op);
+			if(reward == -1) continue;
+			float weights = reward + get_board_value(b);
+			if (weights > best_weights) {
+				best_op = op;
+				best_weights = weights;
+				best_board = b;
+				best_reward = reward;
+			}
+		}
+		if(best_op != NO_OP) {
+			next_op = best_op;
+			after_states.emplace_back(best_board, best_reward);
+			return action::slide(next_op);
+		}
+
+		return action();
+	}
+
+	virtual void train_TDL() {
+		// remove initial board
+		after_states.erase(after_states.begin());
+
+		// first, train final board state
+		train_weights(after_states[after_states.size()-1].b);
+		for(int i = after_states.size() - 2; i >= 0; i--)
+			train_weights(after_states[i].b, after_states[i+1].b, after_states[i].r);
+
+		// initialize after_states at the end of the training
+		after_states.clear();
+	}
+
+protected:
+	virtual void load_weights(const std::string& path) {
+		std::ifstream in(path, std::ios::in | std::ios::binary);
+		if (!in.is_open()) std::exit(-1);
+		uint32_t size;
+		in.read(reinterpret_cast<char*>(&size), sizeof(size));
+		net.resize(size);
+		for (weight& w : net) in >> w;
+		in.close();
+	}
+	virtual void save_weights(const std::string& path) {
+		std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
+		if (!out.is_open()) std::exit(-1);
+		uint32_t size = net.size();
+		out.write(reinterpret_cast<char*>(&size), sizeof(size));
+		for (weight& w : net) out << w;
+		out.close();
+	}
+
+	virtual void train_weights(const board& b, const board& next_b, board::reward& reward) {
+		float err = learning_rate * (reward + get_board_value(next_b) - get_board_value(b));
+		for(int i = 0; i < TUPLE_NUM; i++)
+			net[i][get_feature_key(b, i)] += err;
+	}
+
+	virtual void train_weights(const board& b) {
+		float err = learning_rate * (0 - get_board_value(b));
+		for(int i = 0; i < TUPLE_NUM; i++)
+			net[i][get_feature_key(b, i)] += err;
+	}
+
+protected:
+	float learning_rate;
+	std::vector<BS> after_states;
 };
 
 /**
@@ -344,6 +347,7 @@ private:
  * dummy player
  * select a legal action randomly
  */
+/*
 class player : public random_agent {
 public:
 	player(const std::string& args = "") : random_agent("name=dummy role=player " + args),
@@ -371,3 +375,4 @@ public:
 private:
 	std::array<int, 4> opcode;
 };
+*/
