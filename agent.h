@@ -17,6 +17,7 @@
 #define TILE_P 15
 #define TUPLE_LEN 6
 #define TUPLE_NUM 32
+#define EXPECT_LEVEL 1
 
 typedef struct board_state {
 	board b;
@@ -56,6 +57,81 @@ protected:
 		operator numeric() const { return numeric(std::stod(value)); }
 	};	
 	std::map<key, value> meta;
+<<<<<<< HEAD
+=======
+	std::vector<weight> net;
+};
+
+class random_agent : public agent {
+public:
+	random_agent(const std::string& args = "") : agent(args) {
+		if (meta.find("seed") != meta.end())
+			engine.seed(int(meta["seed"]));
+	}
+	virtual ~random_agent() {}
+
+protected:
+	std::default_random_engine engine;
+};
+
+/**
+ * base agent for agents with weight tables
+ */
+class weight_agent : public agent {
+public:
+	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.0015625f) {
+		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
+			init_weights(meta["init"]);
+		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
+			load_weights(meta["load"]);
+		if (meta.find("alpha") != meta.end())
+			learning_rate = float(meta["alpha"]);
+	}
+	virtual ~weight_agent() {
+		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
+			save_weights("weights.bin");
+	}
+
+	virtual action take_action(const board& before, int& next_op) {
+		int best_op = NO_OP;
+		float best_weights = -999999999;
+		board::reward best_reward = -1;
+		board best_board;
+
+		for (const int& op : opcode) {
+			board b = board(before);
+			board::reward reward = b.slide(op);
+			if(reward == -1) continue;
+			float weights = reward + get_board_value(b);
+			if (weights > best_weights) {
+				best_op = op;
+				best_weights = weights;
+				best_board = b;
+				best_reward = reward;
+			}
+		}
+		if(best_op != NO_OP) {
+			next_op = best_op;
+			after_states.emplace_back(best_board, best_reward);
+			return action::slide(next_op);
+		}
+
+		return action();
+	}
+
+	virtual void train_TDL() {
+		// remove initial board
+		after_states.erase(after_states.begin());
+
+		// first, train final board state
+		train_weights(after_states[after_states.size()-1].b);
+		for(int i = after_states.size() - 2; i >= 0; i--)
+			train_weights(after_states[i].b, after_states[i+1].b, after_states[i].r);
+
+		// initialize after_states at the end of the training
+		after_states.clear();
+	}
+>>>>>>> 03c03194eeca60e594a88b160f551feb7db18f36
 
 protected:
 	virtual void init_weights(const std::string& info) {
@@ -68,7 +144,47 @@ protected:
 		for(int i = 0; i < TUPLE_NUM; i++)
 			net.push_back(possibilities);
 	}
-	
+
+	virtual float get_after_state(const board& b, const int& last_op, const int& level) {
+		if(level == 0)
+			return get_board_value(b);
+
+		float expect_value = 0;
+		int expect_counter = 0;
+
+		for(const int& t: {1, 2, 3})
+			for(int i = 0; i < 4; i++) {
+				if(b(side_space[last_op][i]) != 0)	continue;
+				board before = board(b);
+				expect_value += before.place(t, side_space[last_op][i]) + get_before_state(before, level);
+				expect_counter++;
+			}
+
+		return expect_value / expect_counter;
+	}
+
+	virtual float get_before_state(const board& b, const int& level) {
+		float best_expect = -999999999;
+		float expect = 0;
+		bool move_flag = false;
+
+		for(const int& op : opcode) {
+			board after = board(b);
+			board::reward reward = after.slide(op);
+			if(reward == -1) continue;
+			expect = reward + get_after_state(b, op, level - 1);
+			if(expect > best_expect) {
+				move_flag = true;
+				best_expect = expect;
+			}
+		}
+
+		if(move_flag)
+			return best_expect;
+		else
+			return 0;
+	}
+
 	virtual float get_board_value(const board& b) {
 		float sum = net[0][get_feature_key(b, 0)];
 		for(int i = 1; i < TUPLE_NUM; i++)
@@ -85,8 +201,20 @@ protected:
 		return key_sum;
 	}
 
+<<<<<<< HEAD
 	std::vector<weight> net;
+	std::vector<int> bag;
 	const std::array<int, 4> opcode = {{ 0, 1, 2, 3 }};
+	const std::array<std::array<int, 4>, 4> side_space = {{ {{12, 13, 14, 15}},
+															{{0, 4, 8, 12}},
+															{{0, 1, 2, 3}},
+															{{3, 7, 11, 15}} }};
+=======
+protected:
+	float learning_rate;
+	std::vector<BS> after_states;
+	const std::array<int, 4> opcode = {{ 0, 1, 2, 3 }};
+>>>>>>> 03c03194eeca60e594a88b160f551feb7db18f36
 	const std::array<int, 6> coef = {{ (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1), (int)std::pow(TILE_P, 2),
 									   (int)std::pow(TILE_P, 3), (int)std::pow(TILE_P, 4), (int)std::pow(TILE_P, 5) }};
 	// this is for 32 x 6-tuple
@@ -154,6 +282,72 @@ protected:
 	std::default_random_engine engine;
 };
 
+class rndenv : public random_agent {
+public:
+	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
+		counter(0) {}
+
+	virtual action take_action(const board& after, int& last_op) {
+		if (last_op == NO_OP) {
+			// initialize bag at the beginning of a new game
+			if (counter == 0) {
+				bag.clear();
+				max_tile = 0;
+				bonus_counter = 0;
+			}
+			counter = (counter + 1) % 9;
+			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+			return generate_tile(after, space);
+		}
+		else if(last_op >= 0 && last_op <= 3) {
+			std::array<int, 4> space;
+			space = agent::side_space[last_op];
+			return generate_tile(after, space);
+		}
+		return action();
+	}
+
+	template <class T>
+	action generate_tile(const board& after, T& space){
+		if (bag.empty()) {
+			check_bonus(after);
+			for (int i = 1; i <= 3; i++)
+				for (int j = 0; j < 4; j++) {
+					bag.push_back(i);
+					bonus_counter++;
+					if (max_tile >= 7 && bonus_counter >= 21) {
+						bag.push_back(4);
+						bonus_counter %= 21;
+					}
+				}
+		}
+		random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)(bag.size() - 1)});
+
+		std::shuffle(space.begin(), space.end(), engine);
+		for (int pos : space) {
+			if (after(pos) != 0) continue;
+			int random_num = random_generator(engine);
+			board::cell tile = bag[random_num];
+			bag.erase(bag.begin() + random_num);
+			return action::place(pos, tile);
+		}
+		return action();
+	}
+
+	void check_bonus(const board& b) {
+		for (int p = 0; p < 16; p++)
+			if (b(p) > max_tile)
+				max_tile = b(p);
+	}
+
+private:
+	int counter;
+	int max_tile;
+	int bonus_counter;
+	std::array<int, 4> space;
+	std::uniform_int_distribution<int> random_generator;
+};
+
 /**
  * base agent for agents with weight tables
  */
@@ -183,6 +377,7 @@ public:
 			board::reward reward = b.slide(op);
 			if(reward == -1) continue;
 			float weights = reward + get_board_value(b);
+			//float weights = reward + get_after_state(b, op, EXPECT_LEVEL);
 			if (weights > best_weights) {
 				best_op = op;
 				best_weights = weights;
@@ -270,78 +465,6 @@ protected:
  * 2-tile: 90%
  * 4-tile: 10%
  */
-class rndenv : public random_agent {
-public:
-	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
-		counter(0) {}
-
-	virtual action take_action(const board& after, int& last_op) {
-		if (last_op == NO_OP) {
-			// initialize bag at the beginning of a new game
-			if (counter == 0) {
-				bag.clear();
-				max_tile = 0;
-				bonus_counter = 0;
-			}
-			counter = (counter + 1) % 9;
-
-			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-			return generate_tile(after, space);
-		}
-
-		std::array<int, 4> space;
-		switch (last_op) {
-			case 0: space = {12, 13, 14, 15};	break;	// up
-			case 1: space = {0, 4, 8, 12};	break;	// right
-			case 2: space = {0, 1, 2, 3};	break;	// down
-			case 3: space = {3, 7, 11, 15};	break;	// left
-			default: return action();
-		}
-		return generate_tile(after, space);
-	}
-
-	template <class T>
-	action generate_tile(const board& after, T& space){
-		if (bag.empty()) {
-			check_bonus(after);
-			for (int i = 1; i <= 3; i++)
-				for (int j = 0; j < 4; j++) {
-					bag.push_back(i);
-					bonus_counter++;
-					if (max_tile >= 7 && bonus_counter >= 21) {
-						bag.push_back(4);
-						bonus_counter %= 21;
-					}
-				}
-		}
-		random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)(bag.size() - 1)});
-
-		std::shuffle(space.begin(), space.end(), engine);
-		for (int pos : space) {
-			if (after(pos) != 0) continue;
-			int random_num = random_generator(engine);
-			board::cell tile = bag[random_num];
-			bag.erase(bag.begin() + random_num);
-			return action::place(pos, tile);
-		}
-		return action();
-	}
-
-	void check_bonus(const board& b) {
-		for (int p = 0; p < 16; p++)
-			if (b(p) > max_tile)
-				max_tile = b(p);
-	}
-
-private:
-	int temp;
-	int counter;
-	int max_tile;
-	int bonus_counter;
-	std::vector<int> bag;
-	std::array<int, 4> space;
-	std::uniform_int_distribution<int> random_generator;
-};
 
 /**
  * dummy player
