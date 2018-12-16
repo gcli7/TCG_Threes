@@ -120,7 +120,7 @@ public:
 		after_states.erase(after_states.begin());
 
 		// first, train final board state
-		train_weights_terminal(after_states[after_states.size()-1].b);
+		train_weights(after_states[after_states.size()-1].b);
 		for(int i = after_states.size() - 2; i >= 0; i--)
 			train_weights(after_states[i].b, after_states[i+1].b, after_states[i].r);
 
@@ -158,12 +158,12 @@ protected:
 	}
 
 	virtual void train_weights(const board& b, const board& next_b, board::reward& reward) {
-		float err = learning_rate * (get_board_value(next_b) + reward - get_board_value(b));
+		float err = learning_rate * (reward + get_board_value(next_b) - get_board_value(b));
 		for(int i = 0; i < TUPLE_NUM; i++)
 			net[i][get_feature_key(b, i)] += err;
 	}
 
-	virtual void train_weights_terminal(const board& b) {
+	virtual void train_weights(const board& b) {
 		float err = learning_rate * (0 - get_board_value(b));
 		for(int i = 0; i < TUPLE_NUM; i++)
 			net[i][get_feature_key(b, i)] += err;
