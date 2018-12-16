@@ -6,6 +6,3 @@ Threes
 
 # Ignore train data
 *.bin
-
-# Ignore auto training script
-*.py
