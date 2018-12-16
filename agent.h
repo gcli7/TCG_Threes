@@ -57,96 +57,16 @@ protected:
 		operator numeric() const { return numeric(std::stod(value)); }
 	};	
 	std::map<key, value> meta;
-<<<<<<< HEAD
-=======
-	std::vector<weight> net;
-};
-
-class random_agent : public agent {
-public:
-	random_agent(const std::string& args = "") : agent(args) {
-		if (meta.find("seed") != meta.end())
-			engine.seed(int(meta["seed"]));
-	}
-	virtual ~random_agent() {}
-
-protected:
-	std::default_random_engine engine;
-};
-
-/**
- * base agent for agents with weight tables
- */
-class weight_agent : public agent {
-public:
-	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.0015625f) {
-		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
-			init_weights(meta["init"]);
-		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
-			load_weights(meta["load"]);
-		if (meta.find("alpha") != meta.end())
-			learning_rate = float(meta["alpha"]);
-	}
-	virtual ~weight_agent() {
-		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
-			save_weights("weights.bin");
-	}
-
-	virtual action take_action(const board& before, int& next_op) {
-		int best_op = NO_OP;
-		float best_weights = -999999999;
-		board::reward best_reward = -1;
-		board best_board;
-
-		for (const int& op : opcode) {
-			board b = board(before);
-			board::reward reward = b.slide(op);
-			if(reward == -1) continue;
-			float weights = reward + get_board_value(b);
-			if (weights > best_weights) {
-				best_op = op;
-				best_weights = weights;
-				best_board = b;
-				best_reward = reward;
-			}
-		}
-		if(best_op != NO_OP) {
-			next_op = best_op;
-			after_states.emplace_back(best_board, best_reward);
-			return action::slide(next_op);
-		}
-
-		return action();
-	}
-
-	virtual void train_TDL() {
-		// remove initial board
-		after_states.erase(after_states.begin());
-
-		// first, train final board state
-		train_weights(after_states[after_states.size()-1].b);
-		for(int i = after_states.size() - 2; i >= 0; i--)
-			train_weights(after_states[i].b, after_states[i+1].b, after_states[i].r);
-
-		// initialize after_states at the end of the training
-		after_states.clear();
-	}
->>>>>>> 03c03194eeca60e594a88b160f551feb7db18f36
 
 protected:
 	virtual void init_weights(const std::string& info) {
-		/*
-		 * 8 x 4-tuple
-		 * each tuple may be 0, 1, 2, 3, 6, 12, ... or 6144 (index is from 0 to 14)
-		 * there are 15^4 probabilities for tuples
-		 */
 		int possibilities = pow(TILE_P, TUPLE_LEN);
 		for(int i = 0; i < TUPLE_NUM; i++)
 			net.push_back(possibilities);
 	}
 
 	virtual float get_after_state(const board& b, const int& last_op, const int& level) {
-		if(level == 0)
+		if(level == EXPECT_LEVEL)
 			return get_board_value(b);
 
 		float expect_value = 0;
@@ -172,7 +92,7 @@ protected:
 			board after = board(b);
 			board::reward reward = after.slide(op);
 			if(reward == -1) continue;
-			expect = reward + get_after_state(b, op, level - 1);
+			expect = reward + get_after_state(b, op, level + 1);
 			if(expect > best_expect) {
 				move_flag = true;
 				best_expect = expect;
@@ -201,7 +121,6 @@ protected:
 		return key_sum;
 	}
 
-<<<<<<< HEAD
 	std::vector<weight> net;
 	std::vector<int> bag;
 	const std::array<int, 4> opcode = {{ 0, 1, 2, 3 }};
@@ -209,12 +128,6 @@ protected:
 															{{0, 4, 8, 12}},
 															{{0, 1, 2, 3}},
 															{{3, 7, 11, 15}} }};
-=======
-protected:
-	float learning_rate;
-	std::vector<BS> after_states;
-	const std::array<int, 4> opcode = {{ 0, 1, 2, 3 }};
->>>>>>> 03c03194eeca60e594a88b160f551feb7db18f36
 	const std::array<int, 6> coef = {{ (int)std::pow(TILE_P, 0), (int)std::pow(TILE_P, 1), (int)std::pow(TILE_P, 2),
 									   (int)std::pow(TILE_P, 3), (int)std::pow(TILE_P, 4), (int)std::pow(TILE_P, 5) }};
 	// this is for 32 x 6-tuple
@@ -377,7 +290,7 @@ public:
 			board::reward reward = b.slide(op);
 			if(reward == -1) continue;
 			float weights = reward + get_board_value(b);
-			//float weights = reward + get_after_state(b, op, EXPECT_LEVEL);
+			//float weights = reward + get_after_state(b, op, 0);
 			if (weights > best_weights) {
 				best_op = op;
 				best_weights = weights;
