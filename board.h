@@ -3,6 +3,9 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <random>
+#include <vector>
+#include <algorithm>
 
 #define NO_OP 4
 
@@ -25,8 +28,10 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(0), last_op(NO_OP) {}
-	board(const grid& b, data v = 0) : tile(b), attr(v), last_op(NO_OP) {}
+	board() : tile(), attr(0), last_op(NO_OP), max_tile(0), tile_counter(0),
+              bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
+	board(const grid& b, data v = 0) : tile(b), attr(v), last_op(NO_OP), max_tile(0), tile_counter(0),
+                                       bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -56,8 +61,9 @@ public:
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
-		//if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
+        remove_tile(tile);
+        tile_counter++;
 		if (tile >= 3) return std::pow(3, tile - 2);
 		return 0;
 	}
@@ -76,9 +82,16 @@ public:
 		}
 	}
 
-    int get_last_op() const {
-        return last_op;
-    }
+    int get_max_tile() { return max_tile; }
+    const int get_max_tile() const { return max_tile; }
+    int get_last_op() { return last_op; }
+    const int get_last_op() const { return last_op; }
+    std::vector<int> get_bag_all_tiles() { return bag; }
+    const std::vector<int> get_bag_all_tiles() const { return bag; }
+    int get_bag_tile(int n) { return bag[n]; }
+    const int get_bag_tile(int n) const { return bag[n]; }
+    int get_bag_size() { return bag.size(); }
+    const int get_bag_size() const { return bag.size(); }
 
 protected:
 	reward slide_left() {
@@ -99,6 +112,8 @@ protected:
 				}
 				else if (row[c] == row[c-1]) {
 					row[c-1] += 1;
+                    if(row[c-1] > max_tile)
+                        max_tile = row[c-1];
 					score += pow(3, row[c] - 2);
 					row[c] = 0;
 				}
@@ -165,6 +180,37 @@ protected:
 	void rotate_left() { transpose(); reflect_vertical(); } // counterclockwise
 	void reverse() { reflect_horizontal(); reflect_vertical(); }
 
+    void remove_tile(int t) {
+        std::vector<int>::iterator vi = find(bag.begin(), bag.end(), t);
+        if (vi != bag.end())
+            bag.erase(vi);
+        else
+            ; //std::cout << "Bag : an error at removing tile." << std::endl;
+
+        if (bag.empty())
+            for(int i = 1; i <= 3; i++)
+                for(int j = 0; j < 4; j++) {
+                    if(max_tile >= 7 && tile_counter >= 21) {
+                        std::default_random_engine engine;
+                        std::uniform_int_distribution<int> random_generator;
+                        random_generator.param(std::uniform_int_distribution<>::param_type {0, 20});
+                        int random_num = random_generator(engine);
+
+                        if(random_num == 0) {
+                            std::vector<int> bonus;
+                            int max_index = max_tile - 3;
+                            for(int k = 4; k <= max_index; k++)
+                                bonus.push_back(k);
+                            std::shuffle(bonus.begin(), bonus.end(), engine);
+                            bag.push_back(bonus[0]);
+                            tile_counter %= 21;
+                        }
+                    }
+                    bag.push_back(i);
+                }
+                    
+    }
+
 public:
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
 		out << "+------------------------+" << std::endl;
@@ -181,4 +227,7 @@ private:
 	grid tile;
 	data attr;
 	int last_op;
+    int max_tile;
+    int tile_counter;
+	std::vector<int> bag;
 };
