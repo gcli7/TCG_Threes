@@ -72,13 +72,13 @@ protected:
 		float expect_value = 0;
 		int expect_counter = 0;
 
-		for(const int& t: {1, 2, 3})
-			for(int i = 0; i < 4; i++) {
-				if(b(side_space[b.get_last_op()][i]) != 0)	continue;
-				board before = board(b);
-				expect_value += before.place(t, side_space[b.get_last_op()][i]) + get_before_state(before, level);
-				expect_counter++;
-			}
+        for(int i = 0; i < 4; i++) {
+			board before = board(b);
+			board::reward reward = before.place(side_space[b.get_last_op()][i], b.info());
+            if(reward == -1)	continue;
+			expect_value += reward + get_before_state(before, level);
+            expect_counter++;
+        }
 
 		return expect_value / expect_counter;
 	}
@@ -248,6 +248,7 @@ public:
 	}
 
 	virtual action take_action(const board& before) {
+        //std::cout << "player action!" << std::endl;
 		int best_op = NO_OP;
 		float best_weights = -999999999;
 		board::reward best_reward = -1;
@@ -257,8 +258,8 @@ public:
 			board b = board(before);
 			board::reward reward = b.slide(op);
 			if(reward == -1) continue;
-			float weights = reward + get_board_value(b);
-			//float weights = reward + get_after_state(b, op, 0);
+			//float weights = reward + get_board_value(b);
+			float weights = reward + get_after_state(b, 0);
 			if (weights > best_weights) {
 				best_op = op;
 				best_weights = weights;
