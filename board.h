@@ -28,7 +28,7 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(0), last_op(NO_OP), max_tile(0), tile_counter(0),
+	board() : tile(), attr(1), last_op(NO_OP), max_tile(0), tile_counter(0),
               bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
 	board(const grid& b, data v = 0) : tile(b), attr(v), last_op(NO_OP), max_tile(0), tile_counter(0),
                                        bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
@@ -181,34 +181,36 @@ protected:
 	void reverse() { reflect_horizontal(); reflect_vertical(); }
 
     void remove_tile(int t) {
+        int bonus_tile = 0;
         std::vector<int>::iterator vi = find(bag.begin(), bag.end(), t);
         if (vi != bag.end())
             bag.erase(vi);
         else
-            ; //std::cout << "Bag : an error at removing tile." << std::endl;
+            std::cout << "Bag : an error at removing tile." << std::endl;
 
         if (bag.empty())
             for(int i = 1; i <= 3; i++)
                 for(int j = 0; j < 4; j++) {
-                    if(max_tile >= 7 && tile_counter >= 21) {
-                        std::default_random_engine engine;
-                        std::uniform_int_distribution<int> random_generator;
-                        random_generator.param(std::uniform_int_distribution<>::param_type {0, 20});
-                        int random_num = random_generator(engine);
-
-                        if(random_num == 0) {
-                            std::vector<int> bonus;
-                            int max_index = max_tile - 3;
-                            for(int k = 4; k <= max_index; k++)
-                                bonus.push_back(k);
-                            std::shuffle(bonus.begin(), bonus.end(), engine);
-                            bag.push_back(bonus[0]);
-                            tile_counter %= 21;
-                        }
+                    if(max_tile >= 7 && tile_counter >= 25) {
+                        std::vector<int> bonus;
+                        int max_index = max_tile - 3;
+                        for(int k = 4; k <= max_index; k++)
+                            bonus.push_back(k);
+                        std::shuffle(bonus.begin(), bonus.end(), engine);
+                        bag.push_back(bonus[0]);
+                        tile_counter %= 25;
+                        bonus_tile = bonus[0];
                     }
                     bag.push_back(i);
                 }
-                    
+
+        if(bonus_tile) {
+            attr = bonus_tile;
+        }
+        else {
+            random_generator.param(std::uniform_int_distribution<>::param_type {0, bag.size() - 1});
+            attr = bag[random_generator(engine)];
+        }
     }
 
 public:
@@ -230,4 +232,6 @@ private:
     int max_tile;
     int tile_counter;
 	std::vector<int> bag;
+    std::default_random_engine engine;
+    std::uniform_int_distribution<int> random_generator;
 };

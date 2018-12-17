@@ -214,28 +214,12 @@ public:
 
 	template <class T>
 	action generate_tile(const board& after, T& space){
-        /*
-        std::vector<int> bag = after.get_bag_all_tiles();
-        std::cout << "bag =";
-        for(std::vector<int>::iterator vi = bag.begin(); vi != bag.end(); vi++)
-            std::cout << " " << *vi;
-        std::cout << std::endl;
-        */
-		random_generator.param(std::uniform_int_distribution<>::param_type {0, after.get_bag_size() - 1});
-		std::shuffle(space.begin(), space.end(), engine);
+        std::shuffle(space.begin(), space.end(), engine);
 		for (int pos : space) {
 			if (after(pos) != 0) continue;
-			int random_num = random_generator(engine);
-			board::cell tile = after.get_bag_tile(random_num);
-			return action::place(pos, tile);
+			return action::place(pos, after.info());
 		}
 		return action();
-	}
-
-	void check_bonus(const board& b) {
-		for (int p = 0; p < 16; p++)
-			if (b(p) > max_tile)
-				max_tile = b(p);
 	}
 
 private:
@@ -243,7 +227,6 @@ private:
 	int max_tile;
 	int bonus_counter;
 	std::array<int, 4> space;
-	std::uniform_int_distribution<int> random_generator;
 };
 
 /**
