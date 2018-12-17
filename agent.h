@@ -122,7 +122,6 @@ protected:
 	}
 
 	std::vector<weight> net;
-	std::vector<int> bag;
 	const std::array<int, 4> opcode = {{ 0, 1, 2, 3 }};
 	const std::array<std::array<int, 4>, 4> side_space = {{ {{12, 13, 14, 15}},
 															{{0, 4, 8, 12}},
@@ -201,20 +200,13 @@ public:
 		counter(0) {}
 
 	virtual action take_action(const board& after) {
-		if (after.get_last_op() == NO_OP) {
-			// initialize bag at the beginning of a new game
-			if (counter == 0) {
-				bag.clear();
-				max_tile = 0;
-				bonus_counter = 0;
-			}
-			counter = (counter + 1) % 9;
-			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-			return generate_tile(after, space);
-		}
-		else if(after.get_last_op() >= 0 && after.get_last_op() <= 3) {
+		if(after.get_last_op() >= 0 && after.get_last_op() <= 3) {
 			std::array<int, 4> space;
 			space = agent::side_space[after.get_last_op()];
+			return generate_tile(after, space);
+		}
+        else if (after.get_last_op() == NO_OP) {
+			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 			return generate_tile(after, space);
 		}
 		return action();
@@ -222,26 +214,19 @@ public:
 
 	template <class T>
 	action generate_tile(const board& after, T& space){
-		if (bag.empty()) {
-			check_bonus(after);
-			for (int i = 1; i <= 3; i++)
-				for (int j = 0; j < 4; j++) {
-					bag.push_back(i);
-					bonus_counter++;
-					if (max_tile >= 7 && bonus_counter >= 21) {
-						bag.push_back(4);
-						bonus_counter %= 21;
-					}
-				}
-		}
-		random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)(bag.size() - 1)});
-
+        /*
+        std::vector<int> bag = after.get_bag_all_tiles();
+        std::cout << "bag =";
+        for(std::vector<int>::iterator vi = bag.begin(); vi != bag.end(); vi++)
+            std::cout << " " << *vi;
+        std::cout << std::endl;
+        */
+		random_generator.param(std::uniform_int_distribution<>::param_type {0, after.get_bag_size() - 1});
 		std::shuffle(space.begin(), space.end(), engine);
 		for (int pos : space) {
 			if (after(pos) != 0) continue;
 			int random_num = random_generator(engine);
-			board::cell tile = bag[random_num];
-			bag.erase(bag.begin() + random_num);
+			board::cell tile = after.get_bag_tile(random_num);
 			return action::place(pos, tile);
 		}
 		return action();
