@@ -25,8 +25,8 @@ public:
 	typedef int reward;
 
 public:
-	board() : last_op(NO_OP), tile(), attr(0) {}
-	board(const grid& b, data v = 0) : last_op(NO_OP), tile(b), attr(v) {}
+	board() : tile(), attr(0), last_op(NO_OP) {}
+	board(const grid& b, data v = 0) : tile(b), attr(v), last_op(NO_OP) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -68,14 +68,19 @@ public:
 	 */
 	reward slide(unsigned opcode) {
 		switch (opcode & 0b11) {
-			case 0: return slide_up();
-			case 1: return slide_right();
-			case 2: return slide_down();
-			case 3: return slide_left();
-			default: return -1;
+			case 0: last_op = 0;    return slide_up();
+			case 1: last_op = 1;    return slide_right();
+			case 2: last_op = 2;    return slide_down();
+			case 3: last_op = 3;    return slide_left();
+			default: last_op = NO_OP;    return -1;
 		}
 	}
 
+    int get_last_op() const {
+        return last_op;
+    }
+
+protected:
 	reward slide_left() {
 		board prev = *this;
 		reward score = 0;
@@ -171,10 +176,9 @@ public:
 		out << "+------------------------+" << std::endl;
 		return out;
 	}
-public:
-	int last_op;
 
 private:
 	grid tile;
 	data attr;
+	int last_op;
 };

@@ -58,8 +58,10 @@ int main(int argc, const char* argv[]) {
 	//player play(play_args);
 	weight_agent play(play_args);
 	rndenv evil(evil_args);
+	//int game_counter = 0;
 
 	while (!stat.is_finished()) {
+		//std::cout << "Game #" << ++game_counter << std::endl;
 		play.open_episode("~:" + evil.name());
 		evil.open_episode(play.name() + ":~");
 
@@ -67,7 +69,7 @@ int main(int argc, const char* argv[]) {
 		episode& game = stat.back();
 		while (true) {
 			agent& who = game.take_turns(play, evil);
-			action move = who.take_action(game.state(), game.state().last_op);
+			action move = who.take_action(game.state());
 			if (game.apply_action(move) != true) break;
 			if (who.check_for_win(game.state())) break;
 		}

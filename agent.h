@@ -39,7 +39,7 @@ public:
 	virtual ~agent() {}
 	virtual void open_episode(const std::string& flag = "") {}
 	virtual void close_episode(const std::string& flag = "") {}
-	virtual action take_action(const board& b, int& last_op) { return action(); }
+	virtual action take_action(const board& b) { return action(); }
 	virtual bool check_for_win(const board& b) { return false; }
 
 public:
@@ -65,7 +65,7 @@ protected:
 			net.push_back(possibilities);
 	}
 
-	virtual float get_after_state(const board& b, const int& last_op, const int& level) {
+	virtual float get_after_state(const board& b, const int& level) {
 		if(level == EXPECT_LEVEL)
 			return get_board_value(b);
 
@@ -74,9 +74,9 @@ protected:
 
 		for(const int& t: {1, 2, 3})
 			for(int i = 0; i < 4; i++) {
-				if(b(side_space[last_op][i]) != 0)	continue;
+				if(b(side_space[b.get_last_op()][i]) != 0)	continue;
 				board before = board(b);
-				expect_value += before.place(t, side_space[last_op][i]) + get_before_state(before, level);
+				expect_value += before.place(t, side_space[b.get_last_op()][i]) + get_before_state(before, level);
 				expect_counter++;
 			}
 
@@ -92,7 +92,7 @@ protected:
 			board after = board(b);
 			board::reward reward = after.slide(op);
 			if(reward == -1) continue;
-			expect = reward + get_after_state(b, op, level + 1);
+			expect = reward + get_after_state(b, level + 1);
 			if(expect > best_expect) {
 				move_flag = true;
 				best_expect = expect;
@@ -200,8 +200,8 @@ public:
 	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
 		counter(0) {}
 
-	virtual action take_action(const board& after, int& last_op) {
-		if (last_op == NO_OP) {
+	virtual action take_action(const board& after) {
+		if (after.get_last_op() == NO_OP) {
 			// initialize bag at the beginning of a new game
 			if (counter == 0) {
 				bag.clear();
@@ -212,9 +212,9 @@ public:
 			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 			return generate_tile(after, space);
 		}
-		else if(last_op >= 0 && last_op <= 3) {
+		else if(after.get_last_op() >= 0 && after.get_last_op() <= 3) {
 			std::array<int, 4> space;
-			space = agent::side_space[last_op];
+			space = agent::side_space[after.get_last_op()];
 			return generate_tile(after, space);
 		}
 		return action();
@@ -279,7 +279,7 @@ public:
 			save_weights("weights.bin");
 	}
 
-	virtual action take_action(const board& before, int& next_op) {
+	virtual action take_action(const board& before) {
 		int best_op = NO_OP;
 		float best_weights = -999999999;
 		board::reward best_reward = -1;
@@ -299,9 +299,8 @@ public:
 			}
 		}
 		if(best_op != NO_OP) {
-			next_op = best_op;
 			after_states.emplace_back(best_board, best_reward);
-			return action::slide(next_op);
+			return action::slide(best_op);
 		}
 
 		return action();
