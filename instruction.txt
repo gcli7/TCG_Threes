@@ -1,35 +1,44 @@
 To make the sample program
-$ make # see makefile for deatils
+$ make # see makefile for details
 
-To run the sample program
-$ ./2048 # by default the program will run for 1000 games
+To enter the interactive shell
+$ ./2048 --shell
 
-To specify the total games to run
-$ ./2048 --total=100000
+To enter the interactive shell, and set a game record dump file
+$ ./2048 --shell --save="stat.txt"
 
-To save the statistic result to a file
-$ ./2048 --save=stat.txt # existing file will be overwrited
+To enter the interactive shell, set a dump file, and initialize some agents
+$ ./2048 --shell --save="stat.txt" --play="some arguments..." --evil="some arguments..."
 
-To load and review the statistic result from a file
-$ ./2048 --load=stat.txt --summary
+===================================================
+To link the interactive shell with the arena server
 
-To display the statistic every 1000 episodes
-$ ./2048 --total=100000 --block=1000
+First, check the IP address and the port of the arena server, here we assume that it is 127.0.0.1:32768
+$ chmod +x arena-link arena-ctrl # make the scripts executable
+$ ./arena-link 127.0.0.1:32768 ./2048 --shell --save="stat.txt" --play="some arguments..." --evil="some arguments..."
 
-To save the weights of player to a file
-$ ./2048 --play="save=weights.bin"
+However, it is recommended to wrap the complete shell command "./2048 --shell ..." with another script file.
+For example, create a new script file "run.sh" whose content is
+#!/bin/bash
+./2048 --shell --save="stat.txt" --play="some arguments..." --evil="some arguments..." --arguments...
 
-To load the weights of player from a file
-$ ./2048 --play="load=weights.bin"
+Now you can use the wrapper to launch your program
+$ chmod +x run.sh # make the script executable
+$ ./arena-link 127.0.0.1:32768 ./run.sh
 
-To train the network 100000 games, and save the weights to a file
-$ ./2048 --total=100000 --block=1000 --play="save=weights.bin"
+Two messages will be displayed once the arena-link starts
+arena-link: 127.0.0.1:32768 <--> ./run.sh
+arena-ctrl: ./arena-link-20181217013439562
 
-To load the weights from a file, train the network for 100000 games, and save the weights
-$ ./2048 --total=100000 --block=1000 --play="load=weights.bin save=weights.bin"
+The second line indicates the control panel of this session
+To active the control panel, you need another terminal in the same working directory
+$ ./arena-link-20181217013439562 # perform this operation in another terminal
 
-To set the learning rate of training
-$ ./2048 --play="alpha=0.0025"
+Once the control panel is activated, you can send some data to the arena or your program.
+To send something to the remote server, use the prefix "<< "
+To send something to the local program, use the prefix ">> "
 
-To load the weights from a file, test the network for 1000 games, and save the statistic
-$ ./2048 --total=1000 --play="load=weights.bin alpha=0" --save="stat.txt"
+For example, if you want to open a match with other, and you do not write such a algorithm in your program's shell, use this command:
+<< # open @UserName:@UserName
+Or, if you want to terminate your shell normally with the built-in function exit, use this command:
+>> @ exit

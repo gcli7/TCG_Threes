@@ -6,7 +6,6 @@
 #include <sstream>
 #include <chrono>
 #include <numeric>
-#include <cmath>
 #include "board.h"
 #include "action.h"
 #include "agent.h"
@@ -38,9 +37,7 @@ public:
 	}
 	agent& take_turns(agent& play, agent& evil) {
 		ep_time = millisec();
-		if(step() < 9)
-			return evil;
-		return step() & 1 ? play : evil;
+		return (std::max(step() + 1, size_t(2)) % 2) ? play : evil;
 	}
 	agent& last_turns(agent& play, agent& evil) {
 		return take_turns(evil, play);
