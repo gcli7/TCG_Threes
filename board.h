@@ -4,7 +4,7 @@
 #include <iomanip>
 
 /**
- * array-based board for 2048
+ * array-based board for Threes
  *
  * index (1-d form):
  *  (0)  (1)  (2)  (3)
@@ -22,7 +22,7 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(0) {}
+	board() : tile(), attr(0), last_op(-1), bag({1, 2, 3}) {}
 	board(const grid& b, data v = 0) : tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
@@ -172,4 +172,6 @@ public:
 private:
 	grid tile;
 	data attr;
+    int last_op;
+    std::vector<cell> bag;
 };
