@@ -11,6 +11,10 @@
 #include <fstream>
 #include <iostream>
 
+#define MAX_TILE_INDEX 15
+#define TUPLE_LEN 6
+#define TUPLE_NUM 32
+
 class agent {
 public:
 	agent(const std::string& args = "") {
@@ -74,9 +78,9 @@ public:
 
 protected:
 	virtual void init_weights(const std::string& info) {
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
+        int possibility = (int)std::pow(MAX_TILE_INDEX, TUPLE_LEN);
+        for (int i = 0; i < TUPLE_NUM; i++)
+    		net.emplace_back(possibility);
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -98,6 +102,48 @@ protected:
 
 protected:
 	std::vector<weight> net;
+    const std::array<int, TUPLE_LEN> coefficient = {{ (int)std::pow(MAX_TILE_INDEX, 0), (int)std::pow(MAX_TILE_INDEX, 1),
+                                                      (int)std::pow(MAX_TILE_INDEX, 2), (int)std::pow(MAX_TILE_INDEX, 3),
+                                                      (int)std::pow(MAX_TILE_INDEX, 4), (int)std::pow(MAX_TILE_INDEX, 5) }};
+    const std::array<std::array<int, TUPLE_LEN>, TUPLE_NUM> tuple_index = {{ {{0, 4, 8, 9, 12, 13}},
+                                                                             {{1, 5, 9, 10, 13, 14}},
+                                                                             {{1, 2, 5, 6, 9, 10}},
+                                                                             {{2, 3, 6, 7, 10, 11}},
+                                                                             
+                                                                             {{3, 2, 1, 5, 0, 4}},
+                                                                             {{7, 6, 5, 9, 4, 8}},
+                                                                             {{7, 11, 6, 10, 5, 9}},
+                                                                             {{11, 15, 10, 14, 9, 13}},
+                                                                             
+                                                                             {{15, 11, 7, 6, 3, 2}},
+                                                                             {{14, 10, 6, 5, 2, 1}},
+                                                                             {{14, 13, 10, 9, 6, 5}},
+                                                                             {{13, 12, 9, 8, 5, 4}},
+                                                                             
+                                                                             {{12, 13, 14, 10, 15, 11}},
+                                                                             {{8, 9, 10, 6, 11, 7}},
+                                                                             {{8, 4, 9, 5, 10, 6}},
+                                                                             {{4, 0, 5, 1, 6, 2}},
+                                                                             
+                                                                             {{3, 7, 11, 10, 15, 14}},
+                                                                             {{2, 6, 10, 9, 14, 13}},
+                                                                             {{2, 1, 6, 5, 10, 9}},
+                                                                             {{1, 0, 5, 4, 9, 8}},
+                                                                             
+                                                                             {{0, 1, 2, 6, 3, 7}},
+                                                                             {{4, 5, 6, 10, 7, 11}},
+                                                                             {{4, 8, 5, 9, 6, 10}},
+                                                                             {{8, 12, 9, 13, 10, 14}},
+                                                                             
+                                                                             {{12, 8, 4, 5, 0, 1}},
+                                                                             {{13, 9, 5, 6, 1, 2}},
+                                                                             {{13, 14, 9, 10, 5, 6}},
+                                                                             {{14, 15, 10, 11, 6, 7}},
+                                                                             
+                                                                             {{15, 14, 13, 9, 12, 8}},
+                                                                             {{11, 10, 9, 5, 8, 4}},
+                                                                             {{11, 7, 10, 6, 9, 5}},
+                                                                             {{7, 3, 6, 2, 5, 1}} }};
 };
 
 /**
@@ -105,7 +151,7 @@ protected:
  */
 class learning_agent : public agent {
 public:
-	learning_agent(const std::string& args = "") : agent(args), alpha(0.1f) {
+	learning_agent(const std::string& args = "") : agent(args), alpha(0.1 / TUPLE_NUM) {
 		if (meta.find("alpha") != meta.end())
 			alpha = float(meta["alpha"]);
 	}

@@ -4,7 +4,7 @@ Threes
 # Ignore the executable file
 *.txt
 
-# Ignore train data
+# Ignore training data
 *.bin
 
 # Ignore vscode folder
