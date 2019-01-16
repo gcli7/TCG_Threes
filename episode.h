@@ -37,7 +37,14 @@ public:
 	}
 	agent& take_turns(agent& play, agent& evil) {
 		ep_time = millisec();
-		return (std::max(step() + 1, size_t(2)) % 2) ? play : evil;
+
+		if (step() < 9)
+			return evil;
+		else if (step() & 1)
+			return play;
+		else
+			return evil;
+		//return (std::max(step() + 1, size_t(2)) % 2) ? play : evil;
 	}
 	agent& last_turns(agent& play, agent& evil) {
 		return take_turns(evil, play);
@@ -47,9 +54,9 @@ public:
 	size_t step(unsigned who = -1u) const {
 		int size = ep_moves.size(); // 'int' is important for handling 0
 		switch (who) {
-		case action::slide::type: return (size - 1) / 2;
-		case action::place::type: return (size - (size - 1) / 2);
-		default:                  return size;
+			case action::slide::type: return (size - 1) / 2;
+			case action::place::type: return (size - (size - 1) / 2);
+			default:                  return size;
 		}
 	}
 

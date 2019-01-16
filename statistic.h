@@ -82,7 +82,8 @@ public:
 		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
 			if (stat[t] == 0) continue;
 			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
-			std::cout << "\t" << ((1 << t) & -2u); // type
+			//std::cout << "\t" << ((1 << t) & -2u); // type
+			std::cout << "\t" << base[t]; // type
 			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
 			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
 			std::cout << std::endl;
@@ -144,4 +145,5 @@ private:
 	size_t limit;
 	size_t count;
 	std::list<episode> data;
+	const std::array<int, 15> base = {{0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144}};
 };

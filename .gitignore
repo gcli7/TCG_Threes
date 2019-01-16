@@ -6,3 +6,6 @@ Threes
 
 # Ignore train data
 *.bin
+
+# Ignore vscode folder
+*vscode*
