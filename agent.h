@@ -5,11 +5,10 @@
 #include <map>
 #include <type_traits>
 #include <algorithm>
+#include <fstream>
 #include "board.h"
 #include "action.h"
 #include "weight.h"
-#include <fstream>
-#include <iostream>
 
 #define MAX_TILE_INDEX 15
 #define TUPLE_LEN 6
@@ -46,6 +45,7 @@ protected:
 		operator numeric() const { return numeric(std::stod(value)); }
 	};
 	std::map<key, value> meta;
+	const std::array<int, 4> all_op = {{0 ,1, 2, 3}};
 };
 
 class random_agent : public agent {
@@ -65,11 +65,13 @@ protected:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args) {
+	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.1 / TUPLE_NUM) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
 		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
 			load_weights(meta["load"]);
+		if (meta.find("learning_rate") != meta.end())
+			learning_rate = float(meta["learning_rate"]);
 	}
 	virtual ~weight_agent() {
 		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
@@ -101,7 +103,79 @@ protected:
 	}
 
 protected:
+	float learning_rate;
 	std::vector<weight> net;
+};
+
+/**
+ * the player trained by TDL
+ */
+class TDL_player : public weight_agent {
+public:
+	TDL_player(const std::string& args = "") : weight_agent("name=dummy role=player " + args) {}
+
+	virtual action take_action(const board& before) {
+		int best_op = -1;
+		float best_weight = -99999999.0;
+		board best_board;
+		board::reward best_reward = -1;
+
+		for (const int& op : all_op) {
+			board b = board(before);
+			board::reward reward = b.slide(op);
+			if(reward == -1) continue;
+			float weight = reward + get_board_value(b);
+			if (weight > best_weight) {
+				best_op = op;
+				best_weight = weight;
+				best_board = board(b);
+				best_reward = reward;
+			}
+		}
+
+		if (best_op != -1) {
+			after_states.emplace_back(std::make_pair(best_board, best_reward));
+			return action::slide(best_op);
+		}
+		return action();
+	}
+
+	virtual void training() {
+		train_weight(after_states[after_states.size()-1].first);
+		for (int i = after_states.size() - 1; i > 0; i--)
+			train_weight(after_states[i-1].first, after_states[i].first, after_states[i].second);
+		after_states.clear();
+	}
+
+private:
+	virtual void train_weight(const board& b) {
+		float err = learning_rate * (0 - get_board_value(b));
+		for (int i = 0; i < TUPLE_NUM; i++)
+			net[i][get_feature_key(b, i)] += err;
+	}
+
+	virtual void train_weight(const board& last_b, const board& b, const board::reward& reward) {
+		float err = learning_rate * (get_board_value(b) + reward - get_board_value(last_b));
+		for (int i = 0; i < TUPLE_NUM; i++)
+			net[i][get_feature_key(last_b, i)] += err;
+	}
+
+	virtual float get_board_value(const board& b) {
+		float weight_sum = net[0][get_feature_key(b, 0)];
+		for (int i = 1; i < TUPLE_NUM; i++)
+			weight_sum += net[i][get_feature_key(b, i)];
+		return weight_sum;
+	}
+
+	virtual int get_feature_key(const board& b, const int& row) {
+		int key_sum = b(tuple_index[row][0]) * coefficient[0];
+		for(int i = 1; i < TUPLE_LEN; i++)
+			key_sum += b(tuple_index[row][i]) * coefficient[i];
+		return key_sum;
+	}
+
+private:
+	std::vector<std::pair<board, board::reward>> after_states;
     const std::array<int, TUPLE_LEN> coefficient = {{ (int)std::pow(MAX_TILE_INDEX, 0), (int)std::pow(MAX_TILE_INDEX, 1),
                                                       (int)std::pow(MAX_TILE_INDEX, 2), (int)std::pow(MAX_TILE_INDEX, 3),
                                                       (int)std::pow(MAX_TILE_INDEX, 4), (int)std::pow(MAX_TILE_INDEX, 5) }};
@@ -144,21 +218,6 @@ protected:
                                                                              {{11, 10, 9, 5, 8, 4}},
                                                                              {{11, 7, 10, 6, 9, 5}},
                                                                              {{7, 3, 6, 2, 5, 1}} }};
-};
-
-/**
- * base agent for agents with a learning rate
- */
-class learning_agent : public agent {
-public:
-	learning_agent(const std::string& args = "") : agent(args), alpha(0.1 / TUPLE_NUM) {
-		if (meta.find("alpha") != meta.end())
-			alpha = float(meta["alpha"]);
-	}
-	virtual ~learning_agent() {}
-
-protected:
-	float alpha;
 };
 
 /**
@@ -213,7 +272,7 @@ public:
 		int best_op = -1;
 		board::reward best_reward = -1;
 
-		for (int op : all_op) {
+		for (const int& op : all_op) {
 			board::reward reward = board(before).slide(op);
 			if (reward > best_reward) {
 				best_op = op;
@@ -225,7 +284,4 @@ public:
 			return action::slide(best_op);
 		return action();
 	}
-
-private:
-	const std::array<int, 4> all_op = {{0 ,1, 2, 3}};
 };

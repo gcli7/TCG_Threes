@@ -166,13 +166,13 @@ int main(int argc, const char* argv[]) {
 		summary |= stat.is_finished();
 	}
 
-	player play(play_args);
+	//player play(play_args);
+	TDL_player play(play_args);
 	rndenv evil(evil_args);
 
 	while (!stat.is_finished()) {
 		play.open_episode("~:" + evil.name());
 		evil.open_episode(play.name() + ":~");
-
 		stat.open_episode(play.name() + ":" + evil.name());
 		episode& game = stat.back();
 		while (true) {
@@ -182,8 +182,8 @@ int main(int argc, const char* argv[]) {
 			if (who.check_for_win(game.state())) break;
 		}
 		agent& win = game.last_turns(play, evil);
+		play.training();
 		stat.close_episode(win.name());
-
 		play.close_episode(win.name());
 		evil.close_episode(win.name());
 	}
