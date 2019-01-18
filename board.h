@@ -25,7 +25,7 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(1), last_op(-1), bag({1, 2, 3}) {}
+	board() : tile(), attr(1), last_op(-1), bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
 	board(const grid& b, data v = 0) : tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
@@ -187,7 +187,7 @@ public:
 private:
 	void check_bag() {
 		if (bag.empty())
-			bag = {1, 2, 3};
+			bag = {1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
 	}
 
 	void remove_bag_tile(const cell tile) {
