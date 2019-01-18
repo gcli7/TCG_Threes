@@ -25,7 +25,7 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(1), last_op(-1), bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
+	board() : tile(), attr(1), last_op(-1), max_tile(3), tile_counter(12), bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
 	board(const grid& b, data v = 0) : tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
@@ -61,8 +61,9 @@ public:
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
-		if (tile != 1 && tile != 2 && tile != 3) return -1;
 
+		if (tile == 4)
+			tile = bonus_tile;
 		operator()(pos) = tile;
 		remove_bag_tile(tile);
 
@@ -105,6 +106,9 @@ public:
 					row[c-1]++;
 					score += std::pow(3, row[c] - 2);
 					row[c] = 0;
+
+					if (row[c-1] > max_tile)
+						max_tile = row[c-1];
 				}
 			}
 		}
@@ -186,14 +190,25 @@ public:
 
 private:
 	void check_bag() {
-		if (bag.empty())
-			bag = {1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
+		if (bag.empty()) {
+			for (int i = 1; i <= 3; i++) {
+				for (int j = 0; j < 4; j++) {
+					if (tile_counter >= 20 && max_tile >= 7) {
+						random_generator.param(std::uniform_int_distribution<>::param_type {4, (int)max_tile - 3});
+						bonus_tile = random_generator(random_engine);
+						bag.emplace_back(bonus_tile);
+						tile_counter = 0;
+					}
+					bag.emplace_back(i);
+					tile_counter++;
+				}
+			}
+		}
 	}
 
 	void remove_bag_tile(const cell tile) {
 		std::vector<cell>::iterator vi = find(bag.begin(), bag.end(), tile);
 		bag.erase(vi);
-
 		check_bag();
 		random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)bag.size() - 1});
 		attr = bag[random_generator(random_engine)];
@@ -203,6 +218,9 @@ private:
 	grid tile;
 	data attr;
     int last_op;
+	cell max_tile;
+	cell bonus_tile;
+	int tile_counter;
     std::vector<cell> bag;
 	std::default_random_engine random_engine;
 	std::uniform_int_distribution<int> random_generator;
