@@ -115,46 +115,12 @@ protected:
 };
 
 /**
- * random environment
- * add a new random tile to an empty cell
- * 2-tile: 90%
- * 4-tile: 10%
- */
-class rndenv : public random_agent {
-public:
-	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args) {}
-
-	virtual action take_action(const board& after) {
-		int op = after.get_last_op();
-		if (op >= 0 && op <= 3) {
-			std::array<int, 4> space = side_space[op];
-			return put_tile(after, space);
-		}
-		else if (op == -1) {
-			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-			return put_tile(after, space);
-		}
-		return action();
-	}
-
-	template <class T>
-	action put_tile(const board& b, T& space) {
-		std::shuffle(space.begin(), space.end(), engine);
-		for (int pos : space) {
-			if (b(pos) != 0) continue;
-			return action::place(pos, b.info());
-		}
-		return action();
-	}
-};
-
-/**
  * dummy player
  * select a legal action randomly
  */
-class player : public random_agent {
+class player : public agent {
 public:
-	player(const std::string& args = "") : random_agent("name=dummy role=player " + args) {}
+	player(const std::string& args = "") : agent("name=dummy role=player " + args) {}
 
 	virtual action take_action(const board& before) {
 		int best_op = -1;
@@ -170,6 +136,38 @@ public:
 
 		if (best_op != -1)
 			return action::slide(best_op);
+		return action();
+	}
+};
+
+/**
+ * random environment
+ * add a new random tile to an empty cell
+ * 2-tile: 90%
+ * 4-tile: 10%
+ */
+class rndenv : public random_agent {
+public:
+	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args) {}
+
+	virtual action take_action(const board& after) {
+		int op = after.get_last_op();
+		if (op >= 0 && op <= 3) {
+			std::array<int, 4> space = side_space[op];
+			std::shuffle(space.begin(), space.end(), engine);
+			for (int pos : space) {
+				if (after(pos) != 0) continue;
+				return action::place(pos, after.info());
+			}
+		}
+		else if (op == -1) {
+			std::array<int, 16> board_space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+			std::shuffle(board_space.begin(), board_space.end(), engine);
+			for (int& pos : board_space) {
+				if (after(pos) != 0) continue;
+				return action::place(pos, after.info());
+			}
+		}
 		return action();
 	}
 };
