@@ -19,53 +19,53 @@
 
 class agent {
 public:
-	agent(const std::string& args = "") {
-		std::stringstream ss("name=unknown role=unknown " + args);
-		for (std::string pair; ss >> pair; ) {
-			std::string key = pair.substr(0, pair.find('='));
-			std::string value = pair.substr(pair.find('=') + 1);
-			meta[key] = { value };
-		}
-	}
-	virtual ~agent() {}
-	virtual void open_episode(const std::string& flag = "") {}
-	virtual void close_episode(const std::string& flag = "") {}
-	virtual action take_action(const board& b) { return action(); }
-	virtual bool check_for_win(const board& b) { return false; }
+    agent(const std::string& args = "") {
+        std::stringstream ss("name=unknown role=unknown " + args);
+        for (std::string pair; ss >> pair; ) {
+            std::string key = pair.substr(0, pair.find('='));
+            std::string value = pair.substr(pair.find('=') + 1);
+            meta[key] = { value };
+        }
+    }
+    virtual ~agent() {}
+    virtual void open_episode(const std::string& flag = "") {}
+    virtual void close_episode(const std::string& flag = "") {}
+    virtual action take_action(const board& b) { return action(); }
+    virtual bool check_for_win(const board& b) { return false; }
 
 public:
-	virtual std::string property(const std::string& key) const { return meta.at(key); }
-	virtual void notify(const std::string& msg) { meta[msg.substr(0, msg.find('='))] = { msg.substr(msg.find('=') + 1) }; }
-	virtual std::string name() const { return property("name"); }
-	virtual std::string role() const { return property("role"); }
+    virtual std::string property(const std::string& key) const { return meta.at(key); }
+    virtual void notify(const std::string& msg) { meta[msg.substr(0, msg.find('='))] = { msg.substr(msg.find('=') + 1) }; }
+    virtual std::string name() const { return property("name"); }
+    virtual std::string role() const { return property("role"); }
 
 protected:
-	typedef std::string key;
-	struct value {
-		std::string value;
-		operator std::string() const { return value; }
-		template<typename numeric, typename = typename std::enable_if<std::is_arithmetic<numeric>::value, numeric>::type>
-		operator numeric() const { return numeric(std::stod(value)); }
-	};
-	std::map<key, value> meta;
-	const std::array<int, 4> all_op = {{0 ,1, 2, 3}};
-	const std::array<std::array<int, 4>, 4> side_space = {{ {{12, 13, 14, 15}},
-															{{0, 4, 8, 12}},
-															{{0, 1, 2, 3}},
-															{{3, 7, 11, 15}} }};
+    typedef std::string key;
+    struct value {
+        std::string value;
+        operator std::string() const { return value; }
+        template<typename numeric, typename = typename std::enable_if<std::is_arithmetic<numeric>::value, numeric>::type>
+        operator numeric() const { return numeric(std::stod(value)); }
+    };
+    std::map<key, value> meta;
+    const std::array<int, 4> all_op = {{0 ,1, 2, 3}};
+    const std::array<std::array<int, 4>, 4> side_space = {{ {{12, 13, 14, 15}},
+                                                            {{0, 4, 8, 12}},
+                                                            {{0, 1, 2, 3}},
+                                                            {{3, 7, 11, 15}} }};
 };
 
 /*
 class random_agent : public agent {
 public:
-	random_agent(const std::string& args = "") : agent(args) {
-		if (meta.find("seed") != meta.end())
-			engine.seed(int(meta["seed"]));
-	}
-	virtual ~random_agent() {}
+    random_agent(const std::string& args = "") : agent(args) {
+        if (meta.find("seed") != meta.end())
+            engine.seed(int(meta["seed"]));
+    }
+    virtual ~random_agent() {}
 
 protected:
-	std::default_random_engine engine;
+    std::default_random_engine engine;
 };
 */
 
@@ -74,100 +74,100 @@ protected:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args), learning_rate(0.1 / TUPLE_NUM) {
-		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
-			init_weights(meta["init"]);
-		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
-			load_weights(meta["load"]);
-		if (meta.find("learning_rate") != meta.end())
-			learning_rate = float(meta["learning_rate"]);
-	}
-	virtual ~weight_agent() {
-		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
-			save_weights(meta["save"]);
-	}
+    weight_agent(const std::string& args = "") : agent(args), learning_rate(0.1 / TUPLE_NUM) {
+        if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
+            init_weights(meta["init"]);
+        if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
+            load_weights(meta["load"]);
+        if (meta.find("learning_rate") != meta.end())
+            learning_rate = float(meta["learning_rate"]);
+    }
+    virtual ~weight_agent() {
+        if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
+            save_weights(meta["save"]);
+    }
 
 protected:
-	virtual void init_weights(const std::string& info) {
+    virtual void init_weights(const std::string& info) {
         int possibility = (int)std::pow(MAX_TILE_INDEX, TUPLE_LEN);
         for (int i = 0; i < TUPLE_NUM; i++)
-    		net.emplace_back(possibility);
-	}
+            net.emplace_back(possibility);
+    }
 
-	virtual void load_weights(const std::string& path) {
-		std::ifstream in(path, std::ios::in | std::ios::binary);
-		if (!in.is_open()) std::exit(-1);
-		uint32_t size;
-		in.read(reinterpret_cast<char*>(&size), sizeof(size));
-		net.resize(size);
-		for (weight& w : net) in >> w;
-		in.close();
-	}
+    virtual void load_weights(const std::string& path) {
+        std::ifstream in(path, std::ios::in | std::ios::binary);
+        if (!in.is_open()) std::exit(-1);
+        uint32_t size;
+        in.read(reinterpret_cast<char*>(&size), sizeof(size));
+        net.resize(size);
+        for (weight& w : net) in >> w;
+        in.close();
+    }
 
-	virtual void save_weights(const std::string& path) {
-		std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
-		if (!out.is_open()) std::exit(-1);
-		uint32_t size = net.size();
-		out.write(reinterpret_cast<char*>(&size), sizeof(size));
-		for (weight& w : net) out << w;
-		out.close();
-	}
+    virtual void save_weights(const std::string& path) {
+        std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
+        if (!out.is_open()) std::exit(-1);
+        uint32_t size = net.size();
+        out.write(reinterpret_cast<char*>(&size), sizeof(size));
+        for (weight& w : net) out << w;
+        out.close();
+    }
 
-	virtual float get_after_state(const board& after, const int& level) {
-		if (level >= EXPECT_SEARCH_LEVEL)
-			return get_board_value(after);
+    virtual float get_after_state(const board& after, const int& level) {
+        if (level >= EXPECT_SEARCH_LEVEL)
+            return get_board_value(after);
 
-		float expect_value = 0.0;
-		int expect_counter = 0;
+        float expect_value = 0.0;
+        int expect_counter = 0;
 
-		for (const int& pos : side_space[after.get_last_op()]) {
-			board b = board(after);
-			board::reward reward = b.place(pos, b.info());
-			if (reward == -1) continue;
-			expect_value += reward + get_before_state(b, level);
-			expect_counter++;
-		}
+        for (const int& pos : side_space[after.get_last_op()]) {
+            board b = board(after);
+            board::reward reward = b.place(pos, b.info());
+            if (reward == -1) continue;
+            expect_value += reward + get_before_state(b, level);
+            expect_counter++;
+        }
 
-		return expect_value / expect_counter;
-	}
+        return expect_value / expect_counter;
+    }
 
-	virtual float get_before_state(const board& before, const int& level) {
-		float best_expect = SMALL_FLOAT;
-		bool move_flag = false;
+    virtual float get_before_state(const board& before, const int& level) {
+        float best_expect = SMALL_FLOAT;
+        bool move_flag = false;
 
-		for (const int& op : all_op) {
-			board b = board(before);
-			board::reward reward = b.slide(op);
-			if (reward == -1) continue;
-			float value = reward + get_after_state(b, level + 1);
-			if (value > best_expect) {
-				best_expect = value;
-				move_flag = true;
-			}
-		}
+        for (const int& op : all_op) {
+            board b = board(before);
+            board::reward reward = b.slide(op);
+            if (reward == -1) continue;
+            float value = reward + get_after_state(b, level + 1);
+            if (value > best_expect) {
+                best_expect = value;
+                move_flag = true;
+            }
+        }
 
-		if (move_flag)
-			return best_expect;
-		return 0.0;
-	}
+        if (move_flag)
+            return best_expect;
+        return 0.0;
+    }
 
-	virtual float get_board_value(const board& b) {
-		float weight_sum = net[0][get_feature_key(b, 0)];
-		for (int i = 1; i < TUPLE_NUM; i++)
-			weight_sum += net[i][get_feature_key(b, i)];
-		return weight_sum;
-	}
+    virtual float get_board_value(const board& b) {
+        float weight_sum = net[0][get_feature_key(b, 0)];
+        for (int i = 1; i < TUPLE_NUM; i++)
+            weight_sum += net[i][get_feature_key(b, i)];
+        return weight_sum;
+    }
 
-	virtual int get_feature_key(const board& b, const int& row) {
-		int key_sum = b(tuple_index[row][0]) * coefficient[0];
-		for(int i = 1; i < TUPLE_LEN; i++)
-			key_sum += b(tuple_index[row][i]) * coefficient[i];
-		return key_sum;
-	}
+    virtual int get_feature_key(const board& b, const int& row) {
+        int key_sum = b(tuple_index[row][0]) * coefficient[0];
+        for(int i = 1; i < TUPLE_LEN; i++)
+            key_sum += b(tuple_index[row][i]) * coefficient[i];
+        return key_sum;
+    }
 
 protected:
-	float learning_rate;
-	std::vector<weight> net;
+    float learning_rate;
+    std::vector<weight> net;
     const std::array<int, TUPLE_LEN> coefficient = {{ (int)std::pow(MAX_TILE_INDEX, 0), (int)std::pow(MAX_TILE_INDEX, 1),
                                                       (int)std::pow(MAX_TILE_INDEX, 2), (int)std::pow(MAX_TILE_INDEX, 3),
                                                       (int)std::pow(MAX_TILE_INDEX, 4), (int)std::pow(MAX_TILE_INDEX, 5) }};
@@ -218,24 +218,24 @@ protected:
  */
 class player : public agent {
 public:
-	player(const std::string& args = "") : agent("name=dummy role=player " + args) {}
+    player(const std::string& args = "") : agent("name=dummy role=player " + args) {}
 
-	virtual action take_action(const board& before) {
-		int best_op = -1;
-		board::reward best_reward = -1;
+    virtual action take_action(const board& before) {
+        int best_op = -1;
+        board::reward best_reward = -1;
 
-		for (const int& op : all_op) {
-			board::reward reward = board(before).slide(op);
-			if (reward > best_reward) {
-				best_op = op;
-				best_reward = reward;
-			}
-		}
+        for (const int& op : all_op) {
+            board::reward reward = board(before).slide(op);
+            if (reward > best_reward) {
+                best_op = op;
+                best_reward = reward;
+            }
+        }
 
-		if (best_op != -1)
-			return action::slide(best_op);
-		return action();
-	}
+        if (best_op != -1)
+            return action::slide(best_op);
+        return action();
+    }
 };
 
 /**
@@ -246,31 +246,41 @@ public:
  */
 class rndenv : public weight_agent {
 public:
-	rndenv(const std::string& args = "") : weight_agent("name=random role=environment " + args) {}
+    rndenv(const std::string& args = "") : weight_agent("name=random role=environment " + args) {}
 
-	virtual action take_action(const board& after) {
-		int op = after.get_last_op();
-		if (op >= 0 && op <= 3) {
-			std::array<int, 4> space = side_space[op];
-			std::shuffle(space.begin(), space.end(), engine);
-			for (int pos : space) {
-				if (after(pos) != 0) continue;
-				return action::place(pos, after.info());
-			}
-		}
-		else if (op == -1) {
-			std::array<int, 16> board_space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-			std::shuffle(board_space.begin(), board_space.end(), engine);
-			for (int& pos : board_space) {
-				if (after(pos) != 0) continue;
-				return action::place(pos, after.info());
-			}
-		}
-		return action();
-	}
+    virtual action take_action(const board& after) {
+        int worst_pos = -1;
+        float worst_expect = BIG_FLOAT;
+        int op = after.get_last_op();
+        std::array<int, 4> space = side_space[op];
+
+        if (op >= 0 && op <= 3) {
+            std::shuffle(space.begin(), space.end(), engine);
+            for (const int& pos : space) {
+                board b = board(after);
+                board::reward reward = b.place(pos, b.info());
+                if (reward == -1) continue;
+                float value = reward + get_before_state(b, 0);
+                if (value < worst_expect) {
+                    worst_expect = value;
+                    worst_pos = pos;
+                }
+            }
+            return action::place(worst_pos, after.info());
+        }
+        else if (op == -1) {
+            std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+            std::shuffle(space.begin(), space.end(), engine);
+            for (int& pos : space) {
+                if (after(pos) != 0) continue;
+                return action::place(pos, after.info());
+            }
+        }
+        return action();
+    }
 
 private:
-	std::default_random_engine engine;
+    std::default_random_engine engine;
 };
 
 /**
@@ -278,55 +288,55 @@ private:
  */
 class TDL_player : public weight_agent {
 public:
-	TDL_player(const std::string& args = "") : weight_agent("name=dummy role=player " + args) {}
+    TDL_player(const std::string& args = "") : weight_agent("name=dummy role=player " + args) {}
 
-	virtual action take_action(const board& before) {
-		int best_op = -1;
-		float best_weight = SMALL_FLOAT;
-		board best_board;
-		board::reward best_reward = -1;
+    virtual action take_action(const board& before) {
+        int best_op = -1;
+        float best_weight = SMALL_FLOAT;
+        board best_board;
+        board::reward best_reward = -1;
 
-		for (const int& op : all_op) {
-			board b = board(before);
-			board::reward reward = b.slide(op);
-			if(reward == -1) continue;
-			//float weight = reward + get_board_value(b);
-			float weight = reward + get_after_state(b, 0);
-			if (weight > best_weight) {
-				best_op = op;
-				best_weight = weight;
-				best_board = board(b);
-				best_reward = reward;
-			}
-		}
+        for (const int& op : all_op) {
+            board b = board(before);
+            board::reward reward = b.slide(op);
+            if(reward == -1) continue;
+            //float weight = reward + get_board_value(b);
+            float weight = reward + get_after_state(b, 0);
+            if (weight > best_weight) {
+                best_op = op;
+                best_weight = weight;
+                best_board = board(b);
+                best_reward = reward;
+            }
+        }
 
-		if (best_op != -1) {
-			after_states.emplace_back(std::make_pair(best_board, best_reward));
-			return action::slide(best_op);
-		}
-		return action();
-	}
+        if (best_op != -1) {
+            after_states.emplace_back(std::make_pair(best_board, best_reward));
+            return action::slide(best_op);
+        }
+        return action();
+    }
 
-	virtual void training() {
-		train_weight(after_states[after_states.size()-1].first);
-		for (int i = after_states.size() - 1; i > 0; i--)
-			train_weight(after_states[i-1].first, after_states[i].first, after_states[i].second);
-		after_states.clear();
-	}
-
-private:
-	virtual void train_weight(const board& b) {
-		float err = learning_rate * (0 - get_board_value(b));
-		for (int i = 0; i < TUPLE_NUM; i++)
-			net[i][get_feature_key(b, i)] += err;
-	}
-
-	virtual void train_weight(const board& last_b, const board& b, const board::reward& reward) {
-		float err = learning_rate * (get_board_value(b) + reward - get_board_value(last_b));
-		for (int i = 0; i < TUPLE_NUM; i++)
-			net[i][get_feature_key(last_b, i)] += err;
-	}
+    virtual void training() {
+        train_weight(after_states[after_states.size()-1].first);
+        for (int i = after_states.size() - 1; i > 0; i--)
+            train_weight(after_states[i-1].first, after_states[i].first, after_states[i].second);
+        after_states.clear();
+    }
 
 private:
-	std::vector<std::pair<board, board::reward>> after_states;
+    virtual void train_weight(const board& b) {
+        float err = learning_rate * (0 - get_board_value(b));
+        for (int i = 0; i < TUPLE_NUM; i++)
+            net[i][get_feature_key(b, i)] += err;
+    }
+
+    virtual void train_weight(const board& last_b, const board& b, const board::reward& reward) {
+        float err = learning_rate * (get_board_value(b) + reward - get_board_value(last_b));
+        for (int i = 0; i < TUPLE_NUM; i++)
+            net[i][get_feature_key(last_b, i)] += err;
+    }
+
+private:
+    std::vector<std::pair<board, board::reward>> after_states;
 };
