@@ -55,6 +55,7 @@ protected:
 															{{3, 7, 11, 15}} }};
 };
 
+/*
 class random_agent : public agent {
 public:
 	random_agent(const std::string& args = "") : agent(args) {
@@ -66,6 +67,7 @@ public:
 protected:
 	std::default_random_engine engine;
 };
+*/
 
 /**
  * base agent for agents with weight tables
@@ -91,6 +93,7 @@ protected:
         for (int i = 0; i < TUPLE_NUM; i++)
     		net.emplace_back(possibility);
 	}
+
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
 		if (!in.is_open()) std::exit(-1);
@@ -100,6 +103,7 @@ protected:
 		for (weight& w : net) in >> w;
 		in.close();
 	}
+
 	virtual void save_weights(const std::string& path) {
 		std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
 		if (!out.is_open()) std::exit(-1);
@@ -109,9 +113,103 @@ protected:
 		out.close();
 	}
 
+	virtual float get_after_state(const board& after, const int& level) {
+		if (level >= EXPECT_SEARCH_LEVEL)
+			return get_board_value(after);
+
+		float expect_value = 0.0;
+		int expect_counter = 0;
+
+		for (const int& pos : side_space[after.get_last_op()]) {
+			board b = board(after);
+			board::reward reward = b.place(pos, b.info());
+			if (reward == -1) continue;
+			expect_value += reward + get_before_state(b, level);
+			expect_counter++;
+		}
+
+		return expect_value / expect_counter;
+	}
+
+	virtual float get_before_state(const board& before, const int& level) {
+		float best_expect = SMALL_FLOAT;
+		bool move_flag = false;
+
+		for (const int& op : all_op) {
+			board b = board(before);
+			board::reward reward = b.slide(op);
+			if (reward == -1) continue;
+			float value = reward + get_after_state(b, level + 1);
+			if (value > best_expect) {
+				best_expect = value;
+				move_flag = true;
+			}
+		}
+
+		if (move_flag)
+			return best_expect;
+		return 0.0;
+	}
+
+	virtual float get_board_value(const board& b) {
+		float weight_sum = net[0][get_feature_key(b, 0)];
+		for (int i = 1; i < TUPLE_NUM; i++)
+			weight_sum += net[i][get_feature_key(b, i)];
+		return weight_sum;
+	}
+
+	virtual int get_feature_key(const board& b, const int& row) {
+		int key_sum = b(tuple_index[row][0]) * coefficient[0];
+		for(int i = 1; i < TUPLE_LEN; i++)
+			key_sum += b(tuple_index[row][i]) * coefficient[i];
+		return key_sum;
+	}
+
 protected:
 	float learning_rate;
 	std::vector<weight> net;
+    const std::array<int, TUPLE_LEN> coefficient = {{ (int)std::pow(MAX_TILE_INDEX, 0), (int)std::pow(MAX_TILE_INDEX, 1),
+                                                      (int)std::pow(MAX_TILE_INDEX, 2), (int)std::pow(MAX_TILE_INDEX, 3),
+                                                      (int)std::pow(MAX_TILE_INDEX, 4), (int)std::pow(MAX_TILE_INDEX, 5) }};
+    const std::array<std::array<int, TUPLE_LEN>, TUPLE_NUM> tuple_index = {{ {{0, 4, 8, 9, 12, 13}},
+                                                                             {{1, 5, 9, 10, 13, 14}},
+                                                                             {{1, 2, 5, 6, 9, 10}},
+                                                                             {{2, 3, 6, 7, 10, 11}},
+                                                                             
+                                                                             {{3, 2, 1, 5, 0, 4}},
+                                                                             {{7, 6, 5, 9, 4, 8}},
+                                                                             {{7, 11, 6, 10, 5, 9}},
+                                                                             {{11, 15, 10, 14, 9, 13}},
+                                                                             
+                                                                             {{15, 11, 7, 6, 3, 2}},
+                                                                             {{14, 10, 6, 5, 2, 1}},
+                                                                             {{14, 13, 10, 9, 6, 5}},
+                                                                             {{13, 12, 9, 8, 5, 4}},
+                                                                             
+                                                                             {{12, 13, 14, 10, 15, 11}},
+                                                                             {{8, 9, 10, 6, 11, 7}},
+                                                                             {{8, 4, 9, 5, 10, 6}},
+                                                                             {{4, 0, 5, 1, 6, 2}},
+                                                                             
+                                                                             {{3, 7, 11, 10, 15, 14}},
+                                                                             {{2, 6, 10, 9, 14, 13}},
+                                                                             {{2, 1, 6, 5, 10, 9}},
+                                                                             {{1, 0, 5, 4, 9, 8}},
+                                                                             
+                                                                             {{0, 1, 2, 6, 3, 7}},
+                                                                             {{4, 5, 6, 10, 7, 11}},
+                                                                             {{4, 8, 5, 9, 6, 10}},
+                                                                             {{8, 12, 9, 13, 10, 14}},
+                                                                             
+                                                                             {{12, 8, 4, 5, 0, 1}},
+                                                                             {{13, 9, 5, 6, 1, 2}},
+                                                                             {{13, 14, 9, 10, 5, 6}},
+                                                                             {{14, 15, 10, 11, 6, 7}},
+                                                                             
+                                                                             {{15, 14, 13, 9, 12, 8}},
+                                                                             {{11, 10, 9, 5, 8, 4}},
+                                                                             {{11, 7, 10, 6, 9, 5}},
+                                                                             {{7, 3, 6, 2, 5, 1}} }};
 };
 
 /**
@@ -146,9 +244,9 @@ public:
  * 2-tile: 90%
  * 4-tile: 10%
  */
-class rndenv : public random_agent {
+class rndenv : public weight_agent {
 public:
-	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args) {}
+	rndenv(const std::string& args = "") : weight_agent("name=random role=environment " + args) {}
 
 	virtual action take_action(const board& after) {
 		int op = after.get_last_op();
@@ -170,6 +268,9 @@ public:
 		}
 		return action();
 	}
+
+private:
+	std::default_random_engine engine;
 };
 
 /**
@@ -226,100 +327,6 @@ private:
 			net[i][get_feature_key(last_b, i)] += err;
 	}
 
-	virtual float get_after_state(const board& after, const int& level) {
-		if (level >= EXPECT_SEARCH_LEVEL)
-			return get_board_value(after);
-
-		float expect_value = 0.0;
-		int expect_counter = 0;
-
-		for (const int& pos : side_space[after.get_last_op()]) {
-			board b = board(after);
-			board::reward reward = b.place(pos, b.info());
-			if (reward == -1) continue;
-			expect_value += reward + get_before_state(b, level);
-			expect_counter++;
-		}
-
-		return expect_value / expect_counter;
-	}
-
-	virtual float get_before_state(const board& before, const int& level) {
-		float best_expect = SMALL_FLOAT;
-		bool move_flag = false;
-
-		for (const int& op : all_op) {
-			board b = board(before);
-			board::reward reward = b.slide(op);
-			if (reward == -1) continue;
-			float value = reward + get_after_state(b, level + 1);
-			if (value > best_expect) {
-				best_expect = value;
-				move_flag = true;
-			}
-		}
-
-		if (move_flag)
-			return best_expect;
-		return 0.0;
-	}
-
-	virtual float get_board_value(const board& b) {
-		float weight_sum = net[0][get_feature_key(b, 0)];
-		for (int i = 1; i < TUPLE_NUM; i++)
-			weight_sum += net[i][get_feature_key(b, i)];
-		return weight_sum;
-	}
-
-	virtual int get_feature_key(const board& b, const int& row) {
-		int key_sum = b(tuple_index[row][0]) * coefficient[0];
-		for(int i = 1; i < TUPLE_LEN; i++)
-			key_sum += b(tuple_index[row][i]) * coefficient[i];
-		return key_sum;
-	}
-
 private:
 	std::vector<std::pair<board, board::reward>> after_states;
-    const std::array<int, TUPLE_LEN> coefficient = {{ (int)std::pow(MAX_TILE_INDEX, 0), (int)std::pow(MAX_TILE_INDEX, 1),
-                                                      (int)std::pow(MAX_TILE_INDEX, 2), (int)std::pow(MAX_TILE_INDEX, 3),
-                                                      (int)std::pow(MAX_TILE_INDEX, 4), (int)std::pow(MAX_TILE_INDEX, 5) }};
-    const std::array<std::array<int, TUPLE_LEN>, TUPLE_NUM> tuple_index = {{ {{0, 4, 8, 9, 12, 13}},
-                                                                             {{1, 5, 9, 10, 13, 14}},
-                                                                             {{1, 2, 5, 6, 9, 10}},
-                                                                             {{2, 3, 6, 7, 10, 11}},
-                                                                             
-                                                                             {{3, 2, 1, 5, 0, 4}},
-                                                                             {{7, 6, 5, 9, 4, 8}},
-                                                                             {{7, 11, 6, 10, 5, 9}},
-                                                                             {{11, 15, 10, 14, 9, 13}},
-                                                                             
-                                                                             {{15, 11, 7, 6, 3, 2}},
-                                                                             {{14, 10, 6, 5, 2, 1}},
-                                                                             {{14, 13, 10, 9, 6, 5}},
-                                                                             {{13, 12, 9, 8, 5, 4}},
-                                                                             
-                                                                             {{12, 13, 14, 10, 15, 11}},
-                                                                             {{8, 9, 10, 6, 11, 7}},
-                                                                             {{8, 4, 9, 5, 10, 6}},
-                                                                             {{4, 0, 5, 1, 6, 2}},
-                                                                             
-                                                                             {{3, 7, 11, 10, 15, 14}},
-                                                                             {{2, 6, 10, 9, 14, 13}},
-                                                                             {{2, 1, 6, 5, 10, 9}},
-                                                                             {{1, 0, 5, 4, 9, 8}},
-                                                                             
-                                                                             {{0, 1, 2, 6, 3, 7}},
-                                                                             {{4, 5, 6, 10, 7, 11}},
-                                                                             {{4, 8, 5, 9, 6, 10}},
-                                                                             {{8, 12, 9, 13, 10, 14}},
-                                                                             
-                                                                             {{12, 8, 4, 5, 0, 1}},
-                                                                             {{13, 9, 5, 6, 1, 2}},
-                                                                             {{13, 14, 9, 10, 5, 6}},
-                                                                             {{14, 15, 10, 11, 6, 7}},
-                                                                             
-                                                                             {{15, 14, 13, 9, 12, 8}},
-                                                                             {{11, 10, 9, 5, 8, 4}},
-                                                                             {{11, 7, 10, 6, 9, 5}},
-                                                                             {{7, 3, 6, 2, 5, 1}} }};
 };
