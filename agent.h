@@ -10,9 +10,12 @@
 #include "action.h"
 #include "weight.h"
 
+#define BIG_FLOAT 99999999.0;
+#define SMALL_FLOAT -99999999.0;
 #define MAX_TILE_INDEX 15
 #define TUPLE_LEN 6
 #define TUPLE_NUM 32
+#define EXPECT_SEARCH_LEVEL 1
 
 class agent {
 public:
@@ -46,6 +49,10 @@ protected:
 	};
 	std::map<key, value> meta;
 	const std::array<int, 4> all_op = {{0 ,1, 2, 3}};
+	const std::array<std::array<int, 4>, 4> side_space = {{ {{12, 13, 14, 15}},
+															{{0, 4, 8, 12}},
+															{{0, 1, 2, 3}},
+															{{3, 7, 11, 15}} }};
 };
 
 class random_agent : public agent {
@@ -108,6 +115,66 @@ protected:
 };
 
 /**
+ * random environment
+ * add a new random tile to an empty cell
+ * 2-tile: 90%
+ * 4-tile: 10%
+ */
+class rndenv : public random_agent {
+public:
+	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args) {}
+
+	virtual action take_action(const board& after) {
+		int op = after.get_last_op();
+		if (op >= 0 && op <= 3) {
+			std::array<int, 4> space = side_space[op];
+			return put_tile(after, space);
+		}
+		else if (op == -1) {
+			std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+			return put_tile(after, space);
+		}
+		return action();
+	}
+
+	template <class T>
+	action put_tile(const board& b, T& space) {
+		std::shuffle(space.begin(), space.end(), engine);
+		for (int pos : space) {
+			if (b(pos) != 0) continue;
+			return action::place(pos, b.info());
+		}
+		return action();
+	}
+};
+
+/**
+ * dummy player
+ * select a legal action randomly
+ */
+class player : public random_agent {
+public:
+	player(const std::string& args = "") : random_agent("name=dummy role=player " + args) {}
+
+	virtual action take_action(const board& before) {
+		int best_op = -1;
+		board::reward best_reward = -1;
+
+		for (const int& op : all_op) {
+			board::reward reward = board(before).slide(op);
+			if (reward > best_reward) {
+				best_op = op;
+				best_reward = reward;
+			}
+		}
+
+		if (best_op != -1)
+			return action::slide(best_op);
+		return action();
+	}
+};
+
+/**
  * the player trained by TDL
  */
 class TDL_player : public weight_agent {
@@ -116,7 +183,7 @@ public:
 
 	virtual action take_action(const board& before) {
 		int best_op = -1;
-		float best_weight = -99999999.0;
+		float best_weight = SMALL_FLOAT;
 		board best_board;
 		board::reward best_reward = -1;
 
@@ -124,7 +191,8 @@ public:
 			board b = board(before);
 			board::reward reward = b.slide(op);
 			if(reward == -1) continue;
-			float weight = reward + get_board_value(b);
+			//float weight = reward + get_board_value(b);
+			float weight = reward + get_after_state(b, 0);
 			if (weight > best_weight) {
 				best_op = op;
 				best_weight = weight;
@@ -158,6 +226,44 @@ private:
 		float err = learning_rate * (get_board_value(b) + reward - get_board_value(last_b));
 		for (int i = 0; i < TUPLE_NUM; i++)
 			net[i][get_feature_key(last_b, i)] += err;
+	}
+
+	virtual float get_after_state(const board& after, const int& level) {
+		if (level >= EXPECT_SEARCH_LEVEL)
+			return get_board_value(after);
+
+		float expect_value = 0.0;
+		int expect_counter = 0;
+
+		for (const int& pos : side_space[after.get_last_op()]) {
+			board b = board(after);
+			board::reward reward = b.place(pos, b.info());
+			if (reward == -1) continue;
+			expect_value += reward + get_before_state(b, level);
+			expect_counter++;
+		}
+
+		return expect_value / expect_counter;
+	}
+
+	virtual float get_before_state(const board& before, const int& level) {
+		float best_expect = SMALL_FLOAT;
+		bool move_flag = false;
+
+		for (const int& op : all_op) {
+			board b = board(before);
+			board::reward reward = b.slide(op);
+			if (reward == -1) continue;
+			float value = reward + get_after_state(b, level + 1);
+			if (value > best_expect) {
+				best_expect = value;
+				move_flag = true;
+			}
+		}
+
+		if (move_flag)
+			return best_expect;
+		return 0.0;
 	}
 
 	virtual float get_board_value(const board& b) {
@@ -218,70 +324,4 @@ private:
                                                                              {{11, 10, 9, 5, 8, 4}},
                                                                              {{11, 7, 10, 6, 9, 5}},
                                                                              {{7, 3, 6, 2, 5, 1}} }};
-};
-
-/**
- * random environment
- * add a new random tile to an empty cell
- * 2-tile: 90%
- * 4-tile: 10%
- */
-class rndenv : public random_agent {
-public:
-	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args) {}
-
-	virtual action take_action(const board& after) {
-		int op = after.get_last_op();
-		if (op >= 0 && op <= 3) {
-			std::array<int, 4> side_space;
-			switch(op) {
-				case 0: side_space = {12, 13, 14, 15}; break;
-				case 1: side_space = {0, 4, 8, 12}; break;
-				case 2: side_space = {0, 1, 2, 3}; break;
-				case 3: side_space = {3, 7, 11, 15}; break;
-			}
-			return put_tile(after, side_space);
-		}
-		else if (op == -1) {
-			std::array<int, 16> board_space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-			return put_tile(after, board_space);
-		}
-		return action();
-	}
-
-	template <class T>
-	action put_tile(const board& b, T& space) {
-		std::shuffle(space.begin(), space.end(), engine);
-		for (int pos : space) {
-			if (b(pos) != 0) continue;
-			return action::place(pos, b.info());
-		}
-		return action();
-	}
-};
-
-/**
- * dummy player
- * select a legal action randomly
- */
-class player : public random_agent {
-public:
-	player(const std::string& args = "") : random_agent("name=dummy role=player " + args) {}
-
-	virtual action take_action(const board& before) {
-		int best_op = -1;
-		board::reward best_reward = -1;
-
-		for (const int& op : all_op) {
-			board::reward reward = board(before).slide(op);
-			if (reward > best_reward) {
-				best_op = op;
-				best_reward = reward;
-			}
-		}
-
-		if (best_op != -1)
-			return action::slide(best_op);
-		return action();
-	}
 };

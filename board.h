@@ -59,16 +59,16 @@ public:
 	 * place a tile (index value) to the specific position (1-d form index)
 	 * return 0 if the action is valid, or -1 if not
 	 */
-	reward place(unsigned pos, cell tile) {
-		if (pos >= 16) return -1;
+	reward place(unsigned pos, cell t) {
+		if (pos >= 16 || operator()(pos) != 0) return -1;
 
-		if (tile == 4)
-			tile = bonus_tile;
-		operator()(pos) = tile;
-		remove_bag_tile(tile);
+		if (t == 4)
+			t = bonus_tile;
+		operator()(pos) = t;
+		remove_bag_tile(t);
 
-		if (tile >= 3)
-			return std::pow(3, tile - 2);
+		if (t >= 3)
+			return std::pow(3, t - 2);
 		return 0;
 	}
 
