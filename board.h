@@ -25,7 +25,7 @@ public:
     typedef int reward;
 
 public:
-    board() : tile(), attr(1), last_op(-1), max_tile(3), tile_counter(12), bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
+    board() : tile(), attr(1), last_op(-1), max_tile(3), next_tile(1), tile_counter(12), bag({1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3}) {}
     board(const grid& b, data v = 0) : tile(b), attr(v) {}
     board(const board& b) = default;
     board& operator =(const board& b) = default;
@@ -42,6 +42,9 @@ public:
 
     int get_last_op() { return last_op; }
     int get_last_op() const { return last_op; }
+
+    int get_next_tile() { return next_tile; }
+    int get_next_tile() const { return next_tile; }
 
 public:
     bool operator ==(const board& b) const { return tile == b.tile; }
@@ -60,8 +63,6 @@ public:
     reward place(unsigned pos, cell t) {
         if (pos >= 16 || operator()(pos) != 0) return -1;
 
-        if (t == 4)
-            t = bonus_tile;
         operator()(pos) = t;
         remove_bag_tile(t);
 
@@ -193,8 +194,7 @@ private:
                 for (int j = 0; j < 4; j++) {
                     if (tile_counter >= 20 && max_tile >= 7) {
                         random_generator.param(std::uniform_int_distribution<>::param_type {4, (int)max_tile - 3});
-                        bonus_tile = random_generator(random_engine);
-                        bag.emplace_back(bonus_tile);
+                        bag.emplace_back(random_generator(random_engine));
                         tile_counter = 0;
                     }
                     bag.emplace_back(i);
@@ -209,7 +209,11 @@ private:
         bag.erase(vi);
         check_bag();
         random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)bag.size() - 1});
-        attr = bag[random_generator(random_engine)];
+        next_tile = bag[random_generator(random_engine)];
+        if (next_tile <= 4)
+            attr = next_tile;
+        else
+            attr = 4;
     }
 
 private:
@@ -217,7 +221,7 @@ private:
     data attr;
     int last_op;
     cell max_tile;
-    cell bonus_tile;
+    cell next_tile;
     int tile_counter;
     std::vector<cell> bag;
     std::default_random_engine random_engine;

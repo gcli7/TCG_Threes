@@ -122,7 +122,7 @@ protected:
 
         for (const int& pos : side_space[after.get_last_op()]) {
             board b = board(after);
-            board::reward reward = b.place(pos, b.info());
+            board::reward reward = b.place(pos, b.get_next_tile());
             if (reward == -1) continue;
             expect_value += reward + get_before_state(b, level);
             expect_counter++;
@@ -249,16 +249,16 @@ public:
     rndenv(const std::string& args = "") : weight_agent("name=random role=environment " + args) {}
 
     virtual action take_action(const board& after) {
-        int worst_pos = -1;
-        float worst_expect = BIG_FLOAT;
         int op = after.get_last_op();
-        std::array<int, 4> space = side_space[op];
-
         if (op >= 0 && op <= 3) {
+            int worst_pos = -1;
+            float worst_expect = BIG_FLOAT;
+            std::array<int, 4> space = side_space[op];
+
             std::shuffle(space.begin(), space.end(), engine);
             for (const int& pos : space) {
                 board b = board(after);
-                board::reward reward = b.place(pos, b.info());
+                board::reward reward = b.place(pos, b.get_next_tile());
                 if (reward == -1) continue;
                 float value = reward + get_before_state(b, 0);
                 if (value < worst_expect) {
@@ -266,14 +266,14 @@ public:
                     worst_pos = pos;
                 }
             }
-            return action::place(worst_pos, after.info());
+            return action::place(worst_pos, after.get_next_tile());
         }
         else if (op == -1) {
             std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
             std::shuffle(space.begin(), space.end(), engine);
             for (int& pos : space) {
                 if (after(pos) != 0) continue;
-                return action::place(pos, after.info());
+                return action::place(pos, after.get_next_tile());
             }
         }
         return action();
