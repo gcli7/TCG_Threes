@@ -15,9 +15,9 @@
 #define MAX_TILE_INDEX 15
 #define TUPLE_LEN 6
 #define TUPLE_NUM 32
-#define EXPECT_SEARCH_LEVEL 1
+#define EXPECT_SEARCH_LEVEL 3
 #define EVIL_START_LEVEL 0
-#define PLAYER_START_LEVEL 0
+#define PLAYER_START_LEVEL 1
 
 class agent {
 public:

@@ -206,7 +206,8 @@ private:
 
     void remove_bag_tile(const cell tile) {
         std::vector<cell>::iterator vi = find(bag.begin(), bag.end(), tile);
-        bag.erase(vi);
+        if (vi != bag.end())
+            bag.erase(vi);
         check_bag();
         random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)bag.size() - 1});
         next_tile = bag[random_generator(random_engine)];
