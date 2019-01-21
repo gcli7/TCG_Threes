@@ -16,6 +16,8 @@
 #define TUPLE_LEN 6
 #define TUPLE_NUM 32
 #define EXPECT_SEARCH_LEVEL 1
+#define EVIL_START_LEVEL 0
+#define PLAYER_START_LEVEL 0
 
 class agent {
 public:
@@ -260,7 +262,7 @@ public:
                 board b = board(after);
                 board::reward reward = b.place(pos, b.get_next_tile());
                 if (reward == -1) continue;
-                float value = reward + get_before_state(b, 0);
+                float value = reward + get_before_state(b, EVIL_START_LEVEL);
                 if (value < worst_expect) {
                     worst_expect = value;
                     worst_pos = pos;
@@ -301,7 +303,7 @@ public:
             board::reward reward = b.slide(op);
             if(reward == -1) continue;
             //float weight = reward + get_board_value(b);
-            float weight = reward + get_after_state(b, 0);
+            float weight = reward + get_after_state(b, PLAYER_START_LEVEL);
             if (weight > best_weight) {
                 best_op = op;
                 best_weight = weight;
