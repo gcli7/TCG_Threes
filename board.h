@@ -39,12 +39,13 @@ public:
 
     data info() const { return attr; }
     data info(data dat) { data old = attr; attr = dat; return old; }
-
     int get_last_op() { return last_op; }
     int get_last_op() const { return last_op; }
-
     int get_next_tile() { return next_tile; }
     int get_next_tile() const { return next_tile; }
+    std::vector<cell> get_bag() { return bag; }
+    std::vector<cell> get_bag() const { return bag; }
+
 
 public:
     bool operator ==(const board& b) const { return tile == b.tile; }
@@ -55,6 +56,26 @@ public:
     bool operator >=(const board& b) const { return !(*this < b); }
 
 public:
+    void remove_tile(const cell& t) {
+        std::vector<cell>::iterator vi;
+        if (t < 4) {
+            for (vi = bag.begin(); vi != bag.end(); vi++)
+                if (*vi == t)
+                    break;
+        }
+        else {
+            for (vi = bag.begin(); vi != bag.end(); vi++)
+                if (*vi >= 4)
+                    break;
+        }
+
+        if (vi != bag.end())
+            bag.erase(vi);
+        else
+            std::cout << "bag : cannot find the tile which will be removed." << std::endl;
+        
+        check_bag();
+    }
 
     /**
      * place a tile (index value) to the specific position (1-d form index)
@@ -64,7 +85,8 @@ public:
         if (pos >= 16 || operator()(pos) != 0) return -1;
 
         operator()(pos) = t;
-        remove_bag_tile(t);
+        remove_tile(t);
+        generate_next_tile();
 
         if (t >= 3)
             return std::pow(3, t - 2);
@@ -204,11 +226,7 @@ private:
         }
     }
 
-    void remove_bag_tile(const cell tile) {
-        std::vector<cell>::iterator vi = find(bag.begin(), bag.end(), tile);
-        if (vi != bag.end())
-            bag.erase(vi);
-        check_bag();
+    void generate_next_tile() {
         random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)bag.size() - 1});
         next_tile = bag[random_generator(random_engine)];
         if (next_tile <= 4)

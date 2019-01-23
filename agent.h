@@ -15,9 +15,9 @@
 #define MAX_TILE_INDEX 15
 #define TUPLE_LEN 6
 #define TUPLE_NUM 32
-#define EXPECT_SEARCH_LEVEL 3
+#define EXPECT_SEARCH_LEVEL 1
 #define EVIL_START_LEVEL 0
-#define PLAYER_START_LEVEL 1
+#define PLAYER_START_LEVEL 0
 
 class agent {
 public:
@@ -122,7 +122,7 @@ protected:
         float expect_value = 0.0;
         int expect_counter = 0;
 
-        for (const int& pos : side_space[after.get_last_op()]) {
+        for (auto& pos : side_space[after.get_last_op()]) {
             board b = board(after);
             board::reward reward = b.place(pos, b.get_next_tile());
             if (reward == -1) continue;
@@ -137,7 +137,7 @@ protected:
         float best_expect = SMALL_FLOAT;
         bool move_flag = false;
 
-        for (const int& op : all_op) {
+        for (auto& op : all_op) {
             board b = board(before);
             board::reward reward = b.slide(op);
             if (reward == -1) continue;
@@ -168,6 +168,7 @@ protected:
     }
 
 protected:
+    std::default_random_engine engine;
     float learning_rate;
     std::vector<weight> net;
     const std::array<int, TUPLE_LEN> coefficient = {{ (int)std::pow(MAX_TILE_INDEX, 0), (int)std::pow(MAX_TILE_INDEX, 1),
@@ -218,6 +219,7 @@ protected:
  * dummy player
  * select a legal action randomly
  */
+ /*
 class player : public agent {
 public:
     player(const std::string& args = "") : agent("name=dummy role=player " + args) {}
@@ -226,7 +228,7 @@ public:
         int best_op = -1;
         board::reward best_reward = -1;
 
-        for (const int& op : all_op) {
+        for (auto& op : all_op) {
             board::reward reward = board(before).slide(op);
             if (reward > best_reward) {
                 best_op = op;
@@ -239,6 +241,7 @@ public:
         return action();
     }
 };
+*/
 
 /**
  * random environment
@@ -258,7 +261,7 @@ public:
             std::array<int, 4> space = side_space[op];
 
             std::shuffle(space.begin(), space.end(), engine);
-            for (const int& pos : space) {
+            for (auto& pos : space) {
                 board b = board(after);
                 board::reward reward = b.place(pos, b.get_next_tile());
                 if (reward == -1) continue;
@@ -273,16 +276,13 @@ public:
         else if (op == -1) {
             std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
             std::shuffle(space.begin(), space.end(), engine);
-            for (int& pos : space) {
+            for (auto& pos : space) {
                 if (after(pos) != 0) continue;
                 return action::place(pos, after.get_next_tile());
             }
         }
         return action();
     }
-
-private:
-    std::default_random_engine engine;
 };
 
 /**
@@ -298,7 +298,7 @@ public:
         board best_board;
         board::reward best_reward = -1;
 
-        for (const int& op : all_op) {
+        for (auto& op : all_op) {
             board b = board(before);
             board::reward reward = b.slide(op);
             if(reward == -1) continue;
