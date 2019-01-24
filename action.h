@@ -6,8 +6,8 @@
 
 class action {
 public:
-    action(unsigned code = -1u) : code(code) {}
-    action(const action& a) : code(a.code) {}
+    action(unsigned code = -1u, unsigned h = 0) : code(code), hint(h) {}
+    action(const action& a) : code(a.code), hint(a.hint) {}
     virtual ~action() {}
 
     class slide; // create a sliding action with board opcode
@@ -48,6 +48,7 @@ protected:
     virtual action& reinterpret(const action* a) const { return *new (const_cast<action*>(a)) action(*a); }
 
     unsigned code;
+    unsigned hint;
 };
 
 class action::slide : public action {
@@ -84,13 +85,13 @@ protected:
 class action::place : public action {
 public:
     static constexpr unsigned type = type_flag('p');
-    place(unsigned pos, unsigned tile) : action(place::type | (pos & 0x0f) | (std::min(tile, 35u) << 4)) {}
+    place(unsigned pos, unsigned tile, unsigned hint) : action(place::type | (pos & 0x0f) | (std::min(tile, 35u) << 4), hint) {}
     place(const action& a = {}) : action(a) {}
     unsigned position() const { return event() & 0x0f; }
     unsigned tile() const { return event() >> 4; }
 public:
     board::reward apply(board& b) const {
-        return b.place(position(), tile());
+        return b.place(position(), tile(), hint);
     }
     std::ostream& operator >>(std::ostream& out) const {
         const char* idx = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ?";
@@ -104,7 +105,7 @@ public:
             in.ignore(1) >> v;
             unsigned tile = std::find(idx, idx + 36, v) - idx;
             if (tile < 36) {
-                operator =(action::place(pos, tile));
+                operator =(action::place(pos, tile, hint));
                 return in;
             }
         }

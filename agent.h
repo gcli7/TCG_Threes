@@ -15,9 +15,9 @@
 #define MAX_TILE_INDEX 15
 #define TUPLE_LEN 6
 #define TUPLE_NUM 32
-#define EXPECT_SEARCH_LEVEL 1
+#define EXPECT_SEARCH_LEVEL 3
 #define EVIL_START_LEVEL 0
-#define PLAYER_START_LEVEL 0
+#define PLAYER_START_LEVEL 1
 
 class agent {
 public:
@@ -121,16 +121,30 @@ protected:
 
         float expect_value = 0.0;
         int expect_counter = 0;
+        board b = board(after);
+        std::vector<board::cell> next_bag;
+        board::cell hint_flag = 0;
+
+        b.remove_tile(b.get_next_tile());
+        next_bag = b.get_bag();
 
         for (auto& pos : side_space[after.get_last_op()]) {
-            board b = board(after);
-            board::reward reward = b.place(pos, b.get_next_tile());
-            if (reward == -1) continue;
-            expect_value += reward + get_before_state(b, level);
-            expect_counter++;
+            hint_flag = 0;
+            for (auto& next_hint : next_bag) {
+                if (next_hint <= hint_flag)
+                    continue;
+                else
+                    hint_flag = next_hint;
+                     
+                b = board(after);
+                board::reward reward = b.place(pos, b.get_next_tile(), next_hint);
+                if (reward == -1) continue;
+                expect_value += reward + get_before_state(b, level);
+                expect_counter++;
+            }
         }
 
-        return expect_value / expect_counter;
+        return expect_counter != 0 ? expect_value / expect_counter : 0.0;
     }
 
     virtual float get_before_state(const board& before, const int& level) {
@@ -256,29 +270,52 @@ public:
     virtual action take_action(const board& after) {
         int op = after.get_last_op();
         if (op >= 0 && op <= 3) {
+            board b = board(after);
             int worst_pos = -1;
+            board::cell worst_hint = -1;
+            board::cell hint_flag = 0;
             float worst_expect = BIG_FLOAT;
             std::array<int, 4> space = side_space[op];
+            std::vector<board::cell> next_bag;
 
+            b.remove_tile(b.get_next_tile());
+            next_bag = b.get_bag();
             std::shuffle(space.begin(), space.end(), engine);
-            for (auto& pos : space) {
-                board b = board(after);
-                board::reward reward = b.place(pos, b.get_next_tile());
-                if (reward == -1) continue;
-                float value = reward + get_before_state(b, EVIL_START_LEVEL);
-                if (value < worst_expect) {
-                    worst_expect = value;
-                    worst_pos = pos;
-                }
-            }
-            return action::place(worst_pos, after.get_next_tile());
-        }
-        else if (op == -1) {
-            std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-            std::shuffle(space.begin(), space.end(), engine);
+
             for (auto& pos : space) {
                 if (after(pos) != 0) continue;
-                return action::place(pos, after.get_next_tile());
+                hint_flag = 0;
+                for (auto& next_hint : next_bag) {
+                    if (next_hint <= hint_flag)
+                        continue;
+                    else
+                        hint_flag = next_hint;
+                    b = board(after);
+                    board::reward reward = b.place(pos, b.get_next_tile(), next_hint);
+                    if (reward == -1) continue;
+                    float value = reward + get_before_state(b, EVIL_START_LEVEL);
+                    if (value < worst_expect) {
+                        worst_expect = value;
+                        worst_pos = pos;
+                        worst_hint = next_hint;
+                    }
+                }
+            }
+            return action::place(worst_pos, after.get_next_tile(), worst_hint);
+        }
+        else if (op == -1) {
+            board b = board(after);
+            std::array<int, 16> space = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+            std::vector<board::cell> next_bag;
+
+            b.remove_tile(b.get_next_tile());
+            next_bag = b.get_bag();
+            std::shuffle(next_bag.begin(), next_bag.end(), engine);
+            std::shuffle(space.begin(), space.end(), engine);
+
+            for (auto& pos : space) {
+                if (after(pos) != 0) continue;
+                return action::place(pos, after.get_next_tile(), next_bag[0]);
             }
         }
         return action();
@@ -302,7 +339,6 @@ public:
             board b = board(before);
             board::reward reward = b.slide(op);
             if(reward == -1) continue;
-            //float weight = reward + get_board_value(b);
             float weight = reward + get_after_state(b, PLAYER_START_LEVEL);
             if (weight > best_weight) {
                 best_op = op;

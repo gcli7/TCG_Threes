@@ -56,6 +56,22 @@ public:
     bool operator >=(const board& b) const { return !(*this < b); }
 
 public:
+    /**
+     * place a tile (index value) to the specific position (1-d form index)
+     * return 0 if the action is valid, or -1 if not
+     */
+    reward place(unsigned pos, cell t, cell hint) {
+        if (pos >= 16 || operator()(pos) != 0) return -1;
+
+        operator()(pos) = t;
+        remove_tile(t);
+        set_next_tile(hint);
+
+        if (t >= 3)
+            return std::pow(3, t - 2);
+        return 0;
+    }
+
     void remove_tile(const cell& t) {
         std::vector<cell>::iterator vi;
         if (t < 4) {
@@ -73,24 +89,53 @@ public:
             bag.erase(vi);
         else
             std::cout << "bag : cannot find the tile which will be removed." << std::endl;
-        
+
         check_bag();
     }
 
-    /**
-     * place a tile (index value) to the specific position (1-d form index)
-     * return 0 if the action is valid, or -1 if not
-     */
-    reward place(unsigned pos, cell t) {
-        if (pos >= 16 || operator()(pos) != 0) return -1;
+    void check_bag() {
+        if (bag.empty()) {
+            for (int i = 1; i <= 3; i++) {
+                for (int j = 0; j < 4; j++) {
+                    if (tile_counter >= 20 && max_tile >= 7) {
+                        random_generator.param(std::uniform_int_distribution<>::param_type {4, (int)max_tile - 3});
+                        bag.emplace_back(random_generator(random_engine));
+                        tile_counter = 0;
+                    }
+                    bag.emplace_back(i);
+                    tile_counter++;
+                }
+            }
+        }
+    }
 
-        operator()(pos) = t;
-        remove_tile(t);
-        generate_next_tile();
+    void set_next_tile(const cell& hint) {
+        std::vector<cell>::iterator vi;
+        if (hint < 4) {
+            for (vi = bag.begin(); vi != bag.end(); vi++)
+                if (*vi == hint)
+                    break;
+        }
+        else {
+            for (vi = bag.begin(); vi != bag.end(); vi++)
+                if (*vi >= 4)
+                    break;
+        }
 
-        if (t >= 3)
-            return std::pow(3, t - 2);
-        return 0;
+        if (vi != bag.end()) {
+            next_tile = *vi;
+        }
+        else {
+            std::cout << "bag : cannot find the hint tile which will be set." << std::endl;
+            random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)bag.size() - 1});
+            next_tile = bag[random_generator(random_engine)];
+        }
+
+
+        if (next_tile <= 4)
+            attr = next_tile;
+        else
+            attr = 4;
     }
 
     /**
@@ -202,37 +247,11 @@ public:
         out << "+------------------------+" << std::endl;
         for (auto& row : b.tile) {
             out << "|" << std::dec;
-            for (auto t : row) out << std::setw(6) << ((1 << t) & -2u);
+            for (auto t : row) out << std::setw(6) << (t >= 4 ? std::pow(2, t - 3) * 3 : t);
             out << "|" << std::endl;
         }
         out << "+------------------------+" << std::endl;
         return out;
-    }
-
-private:
-    void check_bag() {
-        if (bag.empty()) {
-            for (int i = 1; i <= 3; i++) {
-                for (int j = 0; j < 4; j++) {
-                    if (tile_counter >= 20 && max_tile >= 7) {
-                        random_generator.param(std::uniform_int_distribution<>::param_type {4, (int)max_tile - 3});
-                        bag.emplace_back(random_generator(random_engine));
-                        tile_counter = 0;
-                    }
-                    bag.emplace_back(i);
-                    tile_counter++;
-                }
-            }
-        }
-    }
-
-    void generate_next_tile() {
-        random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)bag.size() - 1});
-        next_tile = bag[random_generator(random_engine)];
-        if (next_tile <= 4)
-            attr = next_tile;
-        else
-            attr = 4;
     }
 
 private:
