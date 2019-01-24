@@ -43,9 +43,12 @@ public:
     int get_last_op() const { return last_op; }
     int get_next_tile() { return next_tile; }
     int get_next_tile() const { return next_tile; }
+    int get_max_tile() { return max_tile; }
+    int get_max_tile() const { return max_tile; }
+    int get_tile_counter() { return tile_counter; }
+    int get_tile_counter() const { return tile_counter; }
     std::vector<cell> get_bag() { return bag; }
     std::vector<cell> get_bag() const { return bag; }
-
 
 public:
     bool operator ==(const board& b) const { return tile == b.tile; }
@@ -60,8 +63,13 @@ public:
      * place a tile (index value) to the specific position (1-d form index)
      * return 0 if the action is valid, or -1 if not
      */
-    reward place(unsigned pos, cell t, cell hint) {
+    reward place(const unsigned& pos, const cell& t, const cell& hint) {
         if (pos >= 16 || operator()(pos) != 0) return -1;
+
+        if (hint < 4)
+            tile_counter++;
+        else
+            tile_counter = 0;
 
         operator()(pos) = t;
         remove_tile(t);
@@ -73,18 +81,9 @@ public:
     }
 
     void remove_tile(const cell& t) {
-        std::vector<cell>::iterator vi;
-        if (t < 4) {
-            for (vi = bag.begin(); vi != bag.end(); vi++)
-                if (*vi == t)
-                    break;
-        }
-        else {
-            for (vi = bag.begin(); vi != bag.end(); vi++)
-                if (*vi >= 4)
-                    break;
-        }
+        if (t >= 4) return;
 
+        std::vector<cell>::iterator vi = find(bag.begin(), bag.end(), t);
         if (vi != bag.end())
             bag.erase(vi);
         else
@@ -94,44 +93,12 @@ public:
     }
 
     void check_bag() {
-        if (bag.empty()) {
-            for (int i = 1; i <= 3; i++) {
-                for (int j = 0; j < 4; j++) {
-                    if (tile_counter >= 20 && max_tile >= 7) {
-                        random_generator.param(std::uniform_int_distribution<>::param_type {4, (int)max_tile - 3});
-                        bag.emplace_back(random_generator(random_engine));
-                        tile_counter = 0;
-                    }
-                    bag.emplace_back(i);
-                    tile_counter++;
-                }
-            }
-        }
+        if (bag.empty())
+            bag = {1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
     }
 
     void set_next_tile(const cell& hint) {
-        std::vector<cell>::iterator vi;
-        if (hint < 4) {
-            for (vi = bag.begin(); vi != bag.end(); vi++)
-                if (*vi == hint)
-                    break;
-        }
-        else {
-            for (vi = bag.begin(); vi != bag.end(); vi++)
-                if (*vi >= 4)
-                    break;
-        }
-
-        if (vi != bag.end()) {
-            next_tile = *vi;
-        }
-        else {
-            std::cout << "bag : cannot find the hint tile which will be set." << std::endl;
-            random_generator.param(std::uniform_int_distribution<>::param_type {0, (int)bag.size() - 1});
-            next_tile = bag[random_generator(random_engine)];
-        }
-
-
+        next_tile = hint;
         if (next_tile <= 4)
             attr = next_tile;
         else

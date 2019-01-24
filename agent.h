@@ -128,6 +128,11 @@ protected:
         b.remove_tile(b.get_next_tile());
         next_bag = b.get_bag();
 
+        if (b.get_tile_counter() >= 20 && b.get_max_tile() >= 7) {
+            random_generator.param(std::uniform_int_distribution<>::param_type {4, (int)b.get_max_tile() - 3});
+            next_bag.emplace_back(random_generator(random_engine));
+        }
+
         for (auto& pos : side_space[after.get_last_op()]) {
             hint_flag = 0;
             for (auto& next_hint : next_bag) {
@@ -143,7 +148,6 @@ protected:
                 expect_counter++;
             }
         }
-
         return expect_counter != 0 ? expect_value / expect_counter : 0.0;
     }
 
@@ -182,7 +186,8 @@ protected:
     }
 
 protected:
-    std::default_random_engine engine;
+    std::default_random_engine random_engine;
+    std::uniform_int_distribution<int> random_generator;
     float learning_rate;
     std::vector<weight> net;
     const std::array<int, TUPLE_LEN> coefficient = {{ (int)std::pow(MAX_TILE_INDEX, 0), (int)std::pow(MAX_TILE_INDEX, 1),
@@ -275,14 +280,16 @@ public:
             board::cell worst_hint = -1;
             board::cell hint_flag = 0;
             float worst_expect = BIG_FLOAT;
-            std::array<int, 4> space = side_space[op];
             std::vector<board::cell> next_bag;
 
             b.remove_tile(b.get_next_tile());
             next_bag = b.get_bag();
-            std::shuffle(space.begin(), space.end(), engine);
+            if (b.get_tile_counter() >= 20 && b.get_max_tile() >= 7) {
+                random_generator.param(std::uniform_int_distribution<>::param_type {4, (int)b.get_max_tile() - 3});
+                next_bag.emplace_back(random_generator(random_engine));
+            }
 
-            for (auto& pos : space) {
+            for (auto& pos : side_space[op]) {
                 if (after(pos) != 0) continue;
                 hint_flag = 0;
                 for (auto& next_hint : next_bag) {
@@ -310,8 +317,8 @@ public:
 
             b.remove_tile(b.get_next_tile());
             next_bag = b.get_bag();
-            std::shuffle(next_bag.begin(), next_bag.end(), engine);
-            std::shuffle(space.begin(), space.end(), engine);
+            std::shuffle(next_bag.begin(), next_bag.end(), random_engine);
+            std::shuffle(space.begin(), space.end(), random_engine);
 
             for (auto& pos : space) {
                 if (after(pos) != 0) continue;
